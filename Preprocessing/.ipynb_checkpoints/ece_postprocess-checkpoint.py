@@ -4,7 +4,7 @@ Copyright Netherlands eScience Center
 Function        : Quantify atmospheric meridional energy transport from EC-earth (Cartesius)
 Author          : Yang Liu
 Date            : 2017.12.07
-Last Update     : 2018.09.28
+Last Update     : 2018.10.02
 Description     : The code aims to calculate the atmospheric meridional energy
                   transport based on the output from EC-Earth simulation.
                   The complete procedure includes the calculation of the mass budget
@@ -300,26 +300,34 @@ class postprocess:
         # use pygrib to read the grib files
         filenames = [os.path.basename(f) for f in glob.glob(os.path.join(datapath, 'ICMGG*'))]
         file_time = [a for a in [a.lstrip('ICMGG' + expname + '+') for a in filenames] if int(a)][0]
+        # read grib files
         ICMGGECE = pygrib.open(os.path.join(datapath, "ICMGG{}+{}".format(expname, file_time)))
-        ICMSHECE = pygrib.open(os.path.join(datapath, "ICMSH{}+{}".format(expname, file_time)))
         # enumerate the message and create a list for it
-        namelist_GG_pygrib = [i for i in ICMGGECE] # ignore the first 2
+        #namelist_GG_pygrib = [i for i in ICMGGECE] # ignore the first 2
+        namelist_GG = []
+        # read the first 1000 messages and append them to a list
+        for i in np.arange(1,1000,1):
+            name = ICMGGECE.message(i)
+            namelist_GG.append(str(name)) # the message should be converted to str, otherwise remain grib-message
         ICMGGECE.close()
-        namelist_SH_pygrib = [i for i in ICMSHECE]
+        ICMSHECE = pygrib.open(os.path.join(datapath, "ICMSH{}+{}".format(expname, file_time)))
+        #namelist_SH_pygrib = [i for i in ICMSHECE]
+        namelist_SH = []
+        for i in np.arange(1,1000,1):
+            name = ICMSHECE.message(i)
+            namelist_SH.append(str(name))
         ICMSHECE.close()
-        namelist_GG = [str(i) for i in namelist_GG_pygrib[:5000]]
-        namelist_SH = [str(i) for i in namelist_SH_pygrib[:5000]]
         # create index dict for further computation
         index_dict = {}
         # calculate the number of messages per record
         message_1st = namelist_GG[0]
         for i, s in enumerate(namelist_GG[1:]):
-            if message_1st[2:15] in s: # skip "1:"
+            if message_1st[2:-30] in s: # skip "1:"
                 index_dict['num_GG_per'] = i + 1
                 break
         message_1st = namelist_SH[0]
         for i, s in enumerate(namelist_SH[1:]):
-            if message_1st[2:15] in s: # skip "1:"
+            if message_1st[2:-20] in s: # skip "1:"
                 index_dict['num_SH_per'] = i + 1
                 break
         # list of standard variable name as message in GRIB from ECMWF
@@ -345,17 +353,17 @@ class postprocess:
             if name_u in s:
                 index_dict['u'] = i + 1
                 break
-        # check the message index of 1st zonal velocity in the 1st record
+        # check the message index of 1st meridional velocity in the 1st record
         for i, s in enumerate(namelist_SH[:]):
             if name_v in s:
                 index_dict['v'] = i + 1
                 break
-        # check the message index of 1st zonal velocity in the 1st record
+        # check the message index of 1st temperature in the 1st record
         for i, s in enumerate(namelist_SH[:]):
             if name_T in s:
                 index_dict['T'] = i + 1
                 break
-        # check the message index of 1st zonal velocity in the 1st record
+        # check the message index of 1st geopotential in the 1st record
         for i, s in enumerate(namelist_SH[:]):
             if name_gz in s:
                 index_dict['gz'] = i + 1
@@ -684,7 +692,8 @@ class postprocess:
             ## Please check the example message list for more information ##
             ################################################################
             # for the variables on the spectral fields
-            index_SH = index_dict['u'] + i * num_SH_per
+            index_SH = index_dict['u'] + i * num_SH_per # point to the index of u
+            # loop between the first layer to the last layer
             while (index_SH < (index_dict['u'] + Dim_level + i * num_SH_per)):
                 key_u = ICMSHECE.message(index_SH)
                 u[index_SH-index_dict['u']-i*num_SH_per,:,:] = key_u.values
@@ -715,7 +724,7 @@ class postprocess:
                 key_q = ICMGGECE.message(index_GG)
                 q[index_GG-index_dict['q']-i*num_GG_per,:,:] = key_q.values
                 index_GG = index_GG + 1
-	        index_GG = index_dict['sp'] + i * num_GG_per
+            index_GG = index_dict['sp'] + i * num_GG_per
             key_sp = ICMGGECE.message(index_GG)
             sp = key_sp.values
             print("Retrieving datasets on the Gaussian grid successfully for the {} record!".format(i+1))
