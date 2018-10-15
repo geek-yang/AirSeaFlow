@@ -261,9 +261,9 @@ class postprocess:
         num_message_SH = ICMSHECE.messages
         num_message_GG = ICMGGECE.messages
         # number of days in this month
-        days = (num_message_GG/index_dict['num_GG_per']+1)/8 # no 00:00:00 at each year
+        days = (num_message_GG//index_dict['num_GG_per']+1)//8 # no 00:00:00 at each year
         # number of records
-        num_record = num_message_GG/index_dict['num_GG_per']
+        num_record = num_message_GG//index_dict['num_GG_per']
         # get the first message
         first_message = ICMGGECE.message(1)
         # extract the latitudes and longitudes
