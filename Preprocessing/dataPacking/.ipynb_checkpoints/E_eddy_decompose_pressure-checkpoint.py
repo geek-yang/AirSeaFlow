@@ -80,6 +80,7 @@ constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
 start_year = 1979
 end_year = 2017
 # choose the slice number for the vertical layer
+#  pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
 lev_slice = 0
 # specify data path
 # ERAI 3D fields on pressure level
