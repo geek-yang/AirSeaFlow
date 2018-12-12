@@ -153,10 +153,10 @@ def pick_var(var_key):
     T = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
     q = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
     z = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    v[:,:,:] = var_key.variables['v'][:,lev_slice,:,:] / constant['g']
-    T[:,:,:] = var_key.variables['t'][:,lev_slice,:,:] / constant['g']
-    q[:,:,:] = var_key.variables['q'][:,lev_slice,:,:] / constant['g']
-    z[:,:,:] = var_key.variables['z'][:,lev_slice,:,:] / constant['g']
+    v[:,:,:] = var_key.variables['v'][:,lev_slice,:,:]
+    T[:,:,:] = var_key.variables['t'][:,lev_slice,:,:]
+    q[:,:,:] = var_key.variables['q'][:,lev_slice,:,:]
+    z[:,:,:] = var_key.variables['z'][:,lev_slice,:,:]
     # daily mean
     # first we reshape the array
     v_expand = v.reshape(len(time)//4,4,len(latitude),len(longitude))

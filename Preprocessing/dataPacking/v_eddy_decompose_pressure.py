@@ -146,7 +146,7 @@ def pick_var(var_key):
     print ("Start extracting velocity for the calculation of mean over time and space.")
     # extract data at certain levels
     v = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    v[:,:,:] = var_key.variables['v'][:,lev_slice,:,:] / constant['g']
+    v[:,:,:] = var_key.variables['v'][:,lev_slice,:,:]
     # daily mean
     # first we reshape the array
     v_expand = v.reshape(len(time)//4,4,len(latitude),len(longitude))
