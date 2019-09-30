@@ -92,43 +92,116 @@ example = '/project/Reanalysis/JRA55/Monthly/pressure/anl_p125.011_tmp.201301_20
 def var_retrieve_year(datapath, year):
     # get the path to each datasets
     print ("Start retrieving datasets {0} (y)".format(year))
-    # The shape of each variable is (121,480)
-    datapath_full = os.path.join(datapath, 'pressure_monthly_075_{}_3D.nc'.format(year))
-    # get the variable keys
-    var_key = Dataset(datapath_full)
-    
-    # for the first 10 days
-    key_10d_ugrd = pygrib.open(os.path.join(self.path,'jra{0}'.format(i),
-                              'anl_mdl.033_ugrd.reg_tl319.{0}{1}0100_{2}{3}1018'.format(i,namelist_month[j-1],i,namelist_month[j-1])))
-    key_10d_vgrd = pygrib.open(os.path.join(self.path,'jra{0}'.format(i),
-                              'anl_mdl.034_vgrd.reg_tl319.{0}{1}0100_{2}{3}1018'.format(i,namelist_month[j-1],i,namelist_month[j-1])))
-    key_10d_spfh = pygrib.open(os.path.join(self.path,'jra{0}'.format(i),
-                              'anl_mdl.051_spfh.reg_tl319.{0}{1}0100_{2}{3}1018'.format(i,namelist_month[j-1],i,namelist_month[j-1])))    
+    # The shape of each variable is (145,288)
+    # create space for the output
+    T = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    #u = np.zeros((len(month),len(lat),len(lon)), dtype=float)
+    v = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    z = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    # get the keys of data
+    key_tmp = pygrib.open(os.path.join(datapath,
+                          'anl_p125.011_tmp.{0}01_{1}12'.format(year,year)))
+    key_spfh = pygrib.open(os.path.join(datapath,
+                           'anl_p125.051_spfh.{0}01_{1}12'.format(year,year)))
+    #key_ugrd = pygrib.open(os.path.join(datapath,
+    #                       'anl_p125.033_ugrd.{0}01_{1}12'.format(year,year)))
+    key_vgrd = pygrib.open(os.path.join(datapath,
+                           'anl_p125.034_vgrd.{0}01_{1}12'.format(year,year)))
+    key_hgt = pygrib.open(os.path.join(datapath,
+                          'anl_p125.007_hgt.{0}01_{1}12'.format(year,year)))
+    # extract data
+    # reset counters
+    counter_time = 0
+    counter_lev = 0
+    counter_message = 1
+    while (counter_message <= Dim_level*12):
+        # take the key
+        key_T = key_tmp.message(counter_message)
+        key_q = key_spfh.message(counter_message)
+        key_v = key_vgrd.message(counter_message)
+        key_z = key_hgt.message(counter_message)
+        # 27 levels (0-26) # descending
+        if counter_lev == Dim_level:
+            counter_lev = 0
+            counter_time = counter_time + 1
+        # take the values
+        T[counter_time,counter_lev,:,:] = key_T.values
+        q[counter_time,counter_lev,:,:] = key_q.values
+        u[counter_time,counter_lev,:,:] = key_u.values
+        v[counter_time,counter_lev,:,:] = key_v.values
+        # push the counter
+        counter_lev = counter_lev + 1
+        counter_message = counter_message + 1
+    # close all the grib files
+    key_tmp.close()
+    key_spfh.close()
+    #key_ugrd.close()
+    key_vgrd.close()
+    key_hgt.close()
 
-    print ("Retrieving datasets successfully and return the variable key!")
-    return var_key
+    print ("Retrieving datasets successfully and return the variables!")
+    return T, q, v, z
 
 def var_retrieve_month(datapath, year, month):
     # get the path to each datasets
-    print ("Start retrieving datasets {0} (y) {1}".format(year, month))
-    # The shape of each variable is (121,480)
-    datapath_full = os.path.join(datapath, 'pressure_monthly_075_{}_3D.nc'.format(year))
-    # get the variable keys
-    var_key = Dataset(datapath_full)
-
-    print ("Retrieving datasets successfully and return the variable key!")
-    return var_key
+    print ("Start retrieving datasets {0} (y) {1} (m)".format(year, namelist_month[month-1]))
+    # The shape of each variable is (145,288)
+    # create space for the output
+    T = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    q = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    #u = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    v = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    z = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    # get the keys of data
+    key_tmp = pygrib.open(os.path.join(datapath,
+                          'anl_p125_tmp.{0}{1}'.format(year,namelist_month[month-1])))
+    key_spfh = pygrib.open(os.path.join(datapath,
+                          'anl_p125_spfh.{0}{1}'.format(year,namelist_month[month-1])))
+    #key_ugrd = pygrib.open(os.path.join(datapath,
+    #                      'anl_p125_ugrd.{0}{1}'.format(year,namelist_month[month-1])))
+    key_vgrd = pygrib.open(os.path.join(datapath,
+                          'anl_p125_vgrd.{0}{1}'.format(year,namelist_month[month-1])))
+    key_hgt = pygrib.open(os.path.join(datapath,
+                          'anl_p125_hgt.{0}{1}'.format(year,namelist_month[month-1])))
+    # extract data
+    # reset counters
+    counter_lev = 0
+    counter_message = 1
+    while (counter_message <= Dim_level):
+        # take the key
+        key_T = key_tmp.message(counter_message)
+        key_q = key_spfh.message(counter_message)
+        key_v = key_vgrd.message(counter_message)
+        key_z = key_hgt.message(counter_message)
+        # 27 levels (0-26) # descending
+        # take the values
+        T[counter_lev,:,:] = key_T.values
+        q[counter_lev,:,:] = key_q.values
+        u[counter_lev,:,:] = key_u.values
+        v[counter_lev,:,:] = key_v.values
+        # push the counter
+        counter_lev = counter_lev + 1
+    # close all the grib files
+    key_tmp.close()
+    key_spfh.close()
+    #key_ugrd.close()
+    key_vgrd.close()
+    key_hgt.close()
+    
+    print ("Retrieving datasets successfully and return the variables!")
+    return T, q, v, z
 
 
 def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
-                         pool_E_vert, output_path):
+                         pool_E_vert, output_path, latitude, level):
     print ('*******************************************************************')
     print ('*********************** create netcdf file*************************')
     print ('*******************************************************************')
     #logging.info("Start creating netcdf file for the 2D fields of ERAI at each grid point.")
     # wrap the datasets into netcdf file
     # 'NETCDF3_CLASSIC', 'NETCDF3_64BIT', 'NETCDF4_CLASSIC', and 'NETCDF4'
-    data_wrap = Dataset(os.path.join(output_path, 'pressure_erai_monthly_regress_1979_2017_vertProfile_E.nc'),'w',format = 'NETCDF4')
+    data_wrap = Dataset(os.path.join(output_path, 'pressure_jra_monthly_regress_1979_2017_vertProfile_E.nc'),'w',format = 'NETCDF4')
     # create dimensions for netcdf data
     year_wrap_dim = data_wrap.createDimension('year',Dim_year)
     month_wrap_dim = data_wrap.createDimension('month',Dim_month)
@@ -175,19 +248,16 @@ def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
 
-def amet(key):
+def amet(T, q, v, z, level, lat, lon):
     print ('Extract monthly mean fields.')
-    v = var_key.variables['v'][:]
-    t = var_key.variables['t'][:]
-    z = var_key.variables['z'][:]
-    q = var_key.variables['q'][:]
     lev = var_key.variables['level'][:] * 100 # hPa to Pa
     lat = var_key.variables['latitude'][:]
     lon = var_key.variables['longitude'][:]
     # allocation of dp array
     dp_level = np.zeros(lev.shape, dtype=float)
+    dp_level[0] = level[0]
     for i in np.arange(len(dp_level)-1):
-        dp_level[i+1] = lev[i+1] - lev[i]
+        dp_level[i+1] = level[i+1] - level[i]
     # the earth is taken as a perfect sphere, instead of a ellopsoid
     dx = 2 * np.pi * constant['R'] * np.cos(2 * np.pi * lat / 360) / len(lon)
     # plugin the weight of grid box width and apply the correction
@@ -203,14 +273,13 @@ def amet(key):
             cpT[:,i,j,:] =  constant['cp'] * t[:,i,j,:] * v[:,i,j,:] * dp_level[i] / constant['g'] * dx[j]
             gz[:,i,j,:] = z[:,i,j,:] * v[:,i,j,:] * dp_level[i] / constant['g'] * dx[j]
             Lvq[:,i,j,:] = constant['Lv'] * q[:,i,j,:] * v[:,i,j,:] * dp_level[i] / constant['g'] * dx[j]
-    # take the vertical profile - summation
+    # take the vertical profile - summation along longitude
     cpT_vert = np.sum(cpT,3)
     gz_vert = np.sum(gz,3)
     Lvq_vert = np.sum(Lvq,3)
     E_vert = cpT_vert + gz_vert + Lvq_vert
 
     return cpT_vert, gz_vert, Lvq_vert, E_vert
-
 
 if __name__=="__main__":
     ####################################################################
@@ -227,6 +296,12 @@ if __name__=="__main__":
     lats, lons = example_key.latlons()
     lat = lats[:,0] # descending
     lon = lons[0,:]
+    level = np.array(([100, 125, 150, 175, 200,
+                       225, 250, 300, 350, 400,
+                       450, 500, 550, 600, 650,
+                       700, 750, 775, 800, 825,
+                       850, 875, 900, 925, 950,
+                       975, 1000]),dtype=int)
     ####################################################################
     ######       Extract invariant and calculate constants       #######
     ####################################################################
@@ -235,7 +310,7 @@ if __name__=="__main__":
     Dim_month = len(index_month)
     Dim_latitude = len(lat)
     Dim_longitude = len(lon)
-    Dim_level = 27
+    Dim_level = len(level)
     #############################################
     #####   Create space for stroing data   #####
     #############################################
@@ -244,19 +319,22 @@ if __name__=="__main__":
     pool_gz = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     pool_Lvq = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     pool_E = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
-    latitude = np.zeros(Dim_latitude,dtype=float)
-    level = np.zeros(Dim_level,dtype=int)
     # loop for calculation
     for i in period:
         # to deal with different data layout
         if i < 2014:
-            var_retrieve_year(datapath_3D, i)
+            T, q, v, z = var_retrieve_year(datapath_3D, i)
+            cpT, gz, Lvq, E = amet(T, q, v, z, level, lat, lon)
         else:
             for j in index_month:
-                var_retrieve_month(datapath_3D, i, j)
+                pool_T = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+                pool_q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+                pool_v = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+                pool_z = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+                pool_T[j-1,:,:,:], pool_q[j-1,:,:,:], pool_v[j-1,:,:,:],\
+                pool_z[j-1,:,:,:] = var_retrieve_month(datapath_3D, i, j)
+            cpT, gz, Lvq, E = amet(pool_T, pool_q, pool_v, pool_z, level, lat, lon)
         # get the key of each variable
-
-        cpT, gz, Lvq, E = retriver(var_key)
         pool_cpT[i-1979,:,:,:] = cpT / 1E+12 # unit is tera watt
         pool_gz[i-1979,:,:,:] = gz / 1E+12
         pool_Lvq[i-1979,:,:,:] = Lvq / 1E+12
@@ -265,6 +343,6 @@ if __name__=="__main__":
     ######                 Data Wrapping (NetCDF)                #######
     ####################################################################
     create_netcdf_point(pool_cpT, pool_gz, pool_Lvq,
-                        pool_E, output_path)
-    print ('Packing 3D fields of ERA-Interim on pressure level is complete!!!')
+                        pool_E, output_path, lat, level)
+    print ('Packing 3D fields of JRA55 on pressure level is complete!!!')
     print ('The output is in sleep, safe and sound!!!')
