@@ -270,25 +270,25 @@ def compute_eddy(var_v_temporal_mean, var_T_temporal_mean,
     ################## standing eddy ###################
     print ("Calculate standing eddies!")
     var_v_star = np.zeros(var_v.shape,dtype=float)
-    var_v_monthly_zonal_mean = np.mean(np.mean(var_v_monthly_mean,0),1)
+    var_v_monthly_zonal_mean = np.mean(np.mean(var_v,0),1)
     var_v_zonal_mean_2D = np.repeat(var_v_monthly_zonal_mean[np.newaxis,:], seq, 0)
     var_v_zonal_mean_enlarge = np.repeat(var_v_zonal_mean_2D[:,:,np.newaxis], Dim_longitude,2)
     var_v_star = var_v - var_v_zonal_mean_enlarge
 
     var_T_star = np.zeros(var_T.shape,dtype=float)
-    var_T_monthly_zonal_mean = np.mean(np.mean(var_T_monthly_mean,0),1)
+    var_T_monthly_zonal_mean = np.mean(np.mean(var_T,0),1)
     var_T_zonal_mean_2D = np.repeat(var_T_monthly_zonal_mean[np.newaxis,:], seq, 0)
     var_T_zonal_mean_enlarge = np.repeat(var_T_zonal_mean_2D[:,:,np.newaxis], Dim_longitude,2)
     var_T_star = var_T - var_T_zonal_mean_enlarge
 
     var_q_star = np.zeros(var_q.shape,dtype=float)
-    var_q_monthly_zonal_mean = np.mean(np.mean(var_q_monthly_mean,0),1)
+    var_q_monthly_zonal_mean = np.mean(np.mean(var_q,0),1)
     var_q_zonal_mean_2D = np.repeat(var_q_monthly_zonal_mean[np.newaxis,:], seq, 0)
     var_q_zonal_mean_enlarge = np.repeat(var_q_zonal_mean_2D[:,:,np.newaxis], Dim_longitude,2)
     var_q_star = var_q - var_q_zonal_mean_enlarge
 
     var_z_star = np.zeros(var_z.shape,dtype=float)
-    var_z_monthly_zonal_mean = np.mean(np.mean(var_z_monthly_mean,0),1)
+    var_z_monthly_zonal_mean = np.mean(np.mean(var_z,0),1)
     var_z_zonal_mean_2D = np.repeat(var_z_monthly_zonal_mean[np.newaxis,:], seq, 0)
     var_z_zonal_mean_enlarge = np.repeat(var_z_zonal_mean_2D[:,:,np.newaxis], Dim_longitude,2)
     var_z_star = var_z - var_z_zonal_mean_enlarge
