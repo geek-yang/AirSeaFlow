@@ -62,7 +62,7 @@ constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
 
 ################################   Input zone  ######################################
 # specify starting and ending time
-start_year = 1979
+start_year = 1980
 end_year = 2017
 # specify data path
 # ERAI 3D fields on pressure level
@@ -75,20 +75,20 @@ example_path = '/project/Reanalysis/MERRA2/Monthly/Full/MERRA2_200.instM_3d_asm_
 
 def var_key_retrieve(datapath, year, month):
     # get the path to each datasets
-    print ("Start retrieving datasets {0} (y) {1} (m)" % (year, month))
+    print ("Start retrieving datasets {0} (y) {1} (m)".format(year, month))
     # The shape of each variable is (361,576)
     # Sea Level Pressure
     if year < 1992:
-        datapath_full = os.path.join(datapath_Rad,
+        datapath_full = os.path.join(datapath,
                                      'MERRA2_100.instM_3d_asm_Np.{0}{1}.nc4.nc'.format(year,namelist_month[month-1]))
     elif year < 2001:
-        datapath_full = os.path.join(datapath_Rad,
+        datapath_full = os.path.join(datapath,
                                      'MERRA2_200.instM_3d_asm_Np.{0}{1}.nc4.nc'.format(year,namelist_month[month-1]))
     elif year < 2011:
-        datapath_full = os.path.join(datapath_Rad,
+        datapath_full = os.path.join(datapath,
                                      'MERRA2_300.instM_3d_asm_Np.{0}{1}.nc4.nc'.format(year,namelist_month[month-1]))
     else:
-        datapath_full = os.path.join(datapath_Rad,
+        datapath_full = os.path.join(datapath,
                                      'MERRA2_400.instM_3d_asm_Np.{0}{1}.nc4.nc'.format(year,namelist_month[month-1]))
     # get the variable keys
     var_key = Dataset(datapath_full)
@@ -104,7 +104,7 @@ def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
     #logging.info("Start creating netcdf file for the 2D fields of ERAI at each grid point.")
     # wrap the datasets into netcdf file
     # 'NETCDF3_CLASSIC', 'NETCDF3_64BIT', 'NETCDF4_CLASSIC', and 'NETCDF4'
-    data_wrap = Dataset(os.path.join(output_path, 'pressure_merra_monthly_regress_1979_2017_vertProfile_E.nc'),'w',format = 'NETCDF4')
+    data_wrap = Dataset(os.path.join(output_path, 'pressure_merra_monthly_regress_1980_2017_vertProfile_E.nc'),'w',format = 'NETCDF4')
     # create dimensions for netcdf data
     year_wrap_dim = data_wrap.createDimension('year',Dim_year)
     month_wrap_dim = data_wrap.createDimension('month',Dim_month)
@@ -246,14 +246,14 @@ if __name__=="__main__":
         	var_key = var_key_retrieve(datapath_3D,i,j)
         	t, q, v, z = retriver(var_key, lev)
         	cpT, gz, Lvq, E = amet(t, q, v, z, lev, lat, lon)
-        	pool_cpT[i-1979,j-1,:,:] = cpT / 1E+12 # unit is tera watt
-        	pool_gz[i-1979,j-1,:,:] = gz / 1E+12
-        	pool_Lvq[i-1979,j-1,:,:] = Lvq / 1E+12
-       		pool_E[i-1979,j-1,:,:] = E / 1E+12
+        	pool_cpT[i-1980,j-1,:,:] = cpT / 1E+12 # unit is tera watt
+        	pool_gz[i-1980,j-1,:,:] = gz / 1E+12
+        	pool_Lvq[i-1980,j-1,:,:] = Lvq / 1E+12
+       		pool_E[i-1980,j-1,:,:] = E / 1E+12
     ####################################################################
     ######                 Data Wrapping (NetCDF)                #######
     ####################################################################
     create_netcdf_point(pool_cpT, pool_gz, pool_Lvq,
                         pool_E, output_path, lev, lat)
-    print ('Packing 3D fields of ERA-Interim on pressure level is complete!!!')
+    print ('Packing 3D fields of MERRA2 on pressure level is complete!!!')
     print ('The output is in sleep, safe and sound!!!')
