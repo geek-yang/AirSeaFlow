@@ -128,8 +128,8 @@ def var_retrieve_year(datapath, year):
         # take the values
         T[counter_time,counter_lev,:,:] = key_T.values
         q[counter_time,counter_lev,:,:] = key_q.values
-        u[counter_time,counter_lev,:,:] = key_u.values
         v[counter_time,counter_lev,:,:] = key_v.values
+        z[counter_time,counter_lev,:,:] = key_z.values
         # push the counter
         counter_lev = counter_lev + 1
         counter_message = counter_message + 1
@@ -178,10 +178,11 @@ def var_retrieve_month(datapath, year, month):
         # take the values
         T[counter_lev,:,:] = key_T.values
         q[counter_lev,:,:] = key_q.values
-        u[counter_lev,:,:] = key_u.values
         v[counter_lev,:,:] = key_v.values
+        z[counter_lev,:,:] = key_z.values
         # push the counter
         counter_lev = counter_lev + 1
+        counter_message = counter_message + 1
     # close all the grib files
     key_tmp.close()
     key_spfh.close()
@@ -218,7 +219,7 @@ def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
     Lvq_vert_wrap_var = data_wrap.createVariable('Lvq_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
     E_vert_wrap_var = data_wrap.createVariable('E_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
     # global attributes
-    data_wrap.description = 'Monthly mean vertical profile of fields from ERA-Interim on pressure level'
+    data_wrap.description = 'Monthly mean vertical profile of fields from JRA55 on pressure level'
     # variable attributes
     lat_wrap_var.units = 'degree_north'
     lev_wrap_var.units = 'hPa'
@@ -248,13 +249,10 @@ def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
 
-def amet(T, q, v, z, level, lat, lon):
+def amet(t, q, v, z, level, lat, lon):
     print ('Extract monthly mean fields.')
-    lev = var_key.variables['level'][:] * 100 # hPa to Pa
-    lat = var_key.variables['latitude'][:]
-    lon = var_key.variables['longitude'][:]
     # allocation of dp array
-    dp_level = np.zeros(lev.shape, dtype=float)
+    dp_level = np.zeros(level.shape, dtype=float)
     dp_level[0] = level[0]
     for i in np.arange(len(dp_level)-1):
         dp_level[i+1] = level[i+1] - level[i]
@@ -324,7 +322,7 @@ if __name__=="__main__":
         # to deal with different data layout
         if i < 2014:
             T, q, v, z = var_retrieve_year(datapath_3D, i)
-            cpT, gz, Lvq, E = amet(T, q, v, z, level, lat, lon)
+            cpT, gz, Lvq, E = amet(T, q, v, z, level*100, lat, lon)
         else:
             for j in index_month:
                 pool_T = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
@@ -333,7 +331,7 @@ if __name__=="__main__":
                 pool_z = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
                 pool_T[j-1,:,:,:], pool_q[j-1,:,:,:], pool_v[j-1,:,:,:],\
                 pool_z[j-1,:,:,:] = var_retrieve_month(datapath_3D, i, j)
-            cpT, gz, Lvq, E = amet(pool_T, pool_q, pool_v, pool_z, level, lat, lon)
+            cpT, gz, Lvq, E = amet(pool_T, pool_q, pool_v, pool_z, level*100, lat, lon)
         # get the key of each variable
         pool_cpT[i-1979,:,:,:] = cpT / 1E+12 # unit is tera watt
         pool_gz[i-1979,:,:,:] = gz / 1E+12
