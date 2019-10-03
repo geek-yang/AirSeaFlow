@@ -13,7 +13,7 @@ Description     : This module aims to load fields from the standard GRIB files
 
                   JRA55 is a state-of-the-art atmosphere reanalysis product produced
                   by JMA (Japan). It spans from 1979 to 2015. Natively it is generated on a hybrid
-                  sigma grid with a horizontal resolution of 0.56 x 0.56 deg and 60 vertical
+                  sigma grid with a horizontal resolution of 1.25 x 1.25 deg and 60 vertical
                   levels.
 
                   The processing unit is monthly data, for the sake of memory saving.
@@ -45,6 +45,7 @@ Caveat!         : This module is designed to work with a batch of files. Hence, 
 
                   Please use the default names after downloading from NCAR/UCAR Research
                   Data Archive. The files are in GRIB format. Originally, JRA55 has descending lat.
+                  The pressure levels are from TOA to surface.
 """
 
 ##########################################################################
@@ -294,7 +295,15 @@ if __name__=="__main__":
     lats, lons = example_key.latlons()
     lat = lats[:,0] # descending
     lon = lons[0,:]
-    level = np.array(([100, 125, 150, 175, 200,
+    level_q = np.array(([100, 125, 150, 175, 200,
+                         225, 250, 300, 350, 400,
+                         450, 500, 550, 600, 650,
+                         700, 750, 775, 800, 825,
+                         850, 875, 900, 925, 950,
+                         975, 1000]),dtype=int)
+    level = np.array(([1, 2, 3, 5, 7, 
+                       10, 20, 30, 50, 70, 
+                       100, 125, 150, 175, 200,
                        225, 250, 300, 350, 400,
                        450, 500, 550, 600, 650,
                        700, 750, 775, 800, 825,

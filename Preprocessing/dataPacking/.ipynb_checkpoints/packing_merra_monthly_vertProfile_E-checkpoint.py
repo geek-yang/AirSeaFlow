@@ -30,6 +30,7 @@ Caveat!         : This module is designed to work with a batch of files. Hence, 
 
                   Please use the default names after downloading from NASA. 
                   The files are in netCDF format. Originally, MERRA2 has ascending lat.
+                  The pressure levels are from surface to TOA.
 """
 
 ##########################################################################

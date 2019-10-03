@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 """
 Copyright Netherlands eScience Center
-Function        : Packing netCDF for the vertical profile of energy transport (pressure level) from JRA55
+Function        : Packing netCDF for the vertical profile of stream function and wind shear (pressure level) from JRA55
 Author          : Yang Liu (y.liu@esciencecenter.nl)
 First Built     : 2019.09.30
-Last Update     : 2019.09.30
+Last Update     : 2019.10.03
 Contributor     :
 Description     : This module aims to load fields from the standard GRIB files
                   downloaded directly from online data system of NCAR/UCAR Research
-                  Data Archive and compute meridional energy transport at monthly scale
+                  Data Archive and compute stream function and wind shear at monthly scale
                   on pressure levels.
+                  
+                  Wind shear is defined as du/dz (an indicator for the baroclinic instability)<br>
+                  For the calculation of stream function <br>
+                  psi = 2 * pi * R * cos(theta) / g * int (v dp) <br>
 
                   JRA55 is a state-of-the-art atmosphere reanalysis product produced
                   by JMA (Japan). It spans from 1979 to 2015. Natively it is generated on a hybrid
-                  sigma grid with a horizontal resolution of 1.25 x 1.25 deg and 60 vertical
+                  sigma grid with a horizontal resolution of 0.56 x 0.56 deg and 60 vertical
                   levels.
 
                   The processing unit is monthly data, for the sake of memory saving.
@@ -89,6 +93,7 @@ output_path = '/project/Reanalysis/JRA55/Monthly/output'
 # example file
 example = '/project/Reanalysis/JRA55/Monthly/pressure/anl_p125.011_tmp.201301_201312'
 ####################################################################################
+
 
 def var_retrieve_year(datapath, year):
     # get the path to each datasets
@@ -194,16 +199,15 @@ def var_retrieve_month(datapath, year, month):
     print ("Retrieving datasets successfully and return the variables!")
     return T, q, v, z
 
-
-def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
-                         pool_E_vert, output_path, latitude, level):
+def create_netcdf_point (pool_t_vert, pool_q_vert, pool_u_vert, pool_v_vert,
+                         pool_z_vert, pool_dudz_vert, pool_psi_vert, output_path):
     print ('*******************************************************************')
     print ('*********************** create netcdf file*************************')
     print ('*******************************************************************')
     #logging.info("Start creating netcdf file for the 2D fields of ERAI at each grid point.")
     # wrap the datasets into netcdf file
     # 'NETCDF3_CLASSIC', 'NETCDF3_64BIT', 'NETCDF4_CLASSIC', and 'NETCDF4'
-    data_wrap = Dataset(os.path.join(output_path, 'pressure_jra_monthly_regress_1979_2017_vertProfile_E.nc'),'w',format = 'NETCDF4')
+    data_wrap = Dataset(os.path.join(output_path, 'pressure_jra_monthly_regress_1979_2017_vertProfile_dudz_psi_var3D.nc'),'w',format = 'NETCDF4')
     # create dimensions for netcdf data
     year_wrap_dim = data_wrap.createDimension('year',Dim_year)
     month_wrap_dim = data_wrap.createDimension('month',Dim_month)
@@ -215,70 +219,89 @@ def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
     lat_wrap_var = data_wrap.createVariable('latitude',np.float32,('latitude',))
     lev_wrap_var = data_wrap.createVariable('level',np.int32,('level',))
     # create the actual 4d variable
-    cpT_vert_wrap_var = data_wrap.createVariable('cpt_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
-    gz_vert_wrap_var = data_wrap.createVariable('gz_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
-    Lvq_vert_wrap_var = data_wrap.createVariable('Lvq_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
-    E_vert_wrap_var = data_wrap.createVariable('E_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    t_vert_wrap_var = data_wrap.createVariable('t_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    q_vert_wrap_var = data_wrap.createVariable('q_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    u_vert_wrap_var = data_wrap.createVariable('u_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    v_vert_wrap_var = data_wrap.createVariable('v_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    z_vert_wrap_var = data_wrap.createVariable('z_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    dudz_vert_wrap_var = data_wrap.createVariable('dudz_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
+    psi_vert_wrap_var = data_wrap.createVariable('psi_vert',np.float64,('year', 'month', 'level', 'latitude'),zlib=True)
     # global attributes
     data_wrap.description = 'Monthly mean vertical profile of fields from JRA55 on pressure level'
     # variable attributes
     lat_wrap_var.units = 'degree_north'
     lev_wrap_var.units = 'hPa'
 
-    cpT_vert_wrap_var.units = 'Tera Watt'
-    gz_vert_wrap_var.units = 'Tera Watt'
-    Lvq_vert_wrap_var.units = 'Tera Watt'
-    E_vert_wrap_var.units = 'Tera Watt'
+    t_vert_wrap_var.units = 'K'
+    q_vert_wrap_var.units = 'kg/kg'
+    u_vert_wrap_var.units = 'm/s'
+    v_vert_wrap_var.units = 'm/s'
+    z_vert_wrap_var.units = 'm2/s2'
+    dudz_vert_wrap_var.units = '/s'
+    psi_vert_wrap_var.units = 'kg/s'
 
-    cpT_vert_wrap_var.long_name = 'temperature transport'
-    gz_vert_wrap_var.long_name = 'geopotential transport'
-    Lvq_vert_wrap_var.long_name = 'latent heat transport'
-    E_vert_wrap_var.long_name = 'total heat transport'
-    
+    t_vert_wrap_var.long_name = 'temperature'
+    q_vert_wrap_var.long_name = 'specific humidity'
+    u_vert_wrap_var.long_name = 'zonal wind velocity'
+    v_vert_wrap_var.long_name = 'meridional wind velocity'
+    z_vert_wrap_var.long_name = 'geopotential'
+    dudz_vert_wrap_var.long_name = 'zonal wind vertical shear'
+    psi_vert_wrap_var.long_name = 'meridional overturning stream function'
+
     # writing data
     lat_wrap_var[:] = latitude
     lev_wrap_var[:] = level
     month_wrap_var[:] = index_month
     year_wrap_var[:] = period
 
-    cpT_vert_wrap_var[:] = pool_cpT_vert
-    gz_vert_wrap_var[:] = pool_gz_vert
-    Lvq_vert_wrap_var[:] = pool_Lvq_vert
-    E_vert_wrap_var[:] = pool_E_vert
+    t_vert_wrap_var[:] = pool_t_vert
+    q_vert_wrap_var[:] = pool_q_vert
+    u_vert_wrap_var[:] = pool_u_vert
+    v_vert_wrap_var[:] = pool_v_vert
+    z_vert_wrap_var[:] = pool_z_vert
+    dudz_vert_wrap_var[:] = pool_dudz_vert
+    psi_vert_wrap_var[:] = pool_psi_vert
 
     # close the file
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
-
-def amet(t, q, v, z, level, lat, lon):
+    
+def retriver(key):
     print ('Extract monthly mean fields.')
-    # allocation of dp array
-    dp_level = np.zeros(level.shape, dtype=float)
-    dp_level[0] = level[0]
-    for i in np.arange(len(dp_level)-1):
-        dp_level[i+1] = level[i+1] - level[i]
-    # the earth is taken as a perfect sphere, instead of a ellopsoid
+    u = var_key.variables['u'][:]
+    v = var_key.variables['v'][:]
+    t = var_key.variables['t'][:]
+    q = var_key.variables['q'][:]
+    gz = var_key.variables['z'][:]
+    lev = var_key.variables['level'][:]
+    lat = var_key.variables['latitude'][:]
+    lon = var_key.variables['longitude'][:]
+    # calculate the height
+    z = gz / constant['g']
+    # calculate the vertical shear
+    # create arrays to store the values
+    dudz = np.zeros(u.shape,dtype=float)
+    for i in np.arange(len(level)-2):
+        dudz[:,i+1,:,:] = (u[:,i,:,:] - u[:,i+2,:,:]) / (z[:,i,:,:] - z[:,i+2,:,:])
+    # calculate the stokes stream function
+    mass_flux = np.zeros(u.shape,dtype=float)
+    psi = np.zeros(u.shape,dtype=float)
     dx = 2 * np.pi * constant['R'] * np.cos(2 * np.pi * lat / 360) / len(lon)
-    # plugin the weight of grid box width and apply the correction
-    dx[0] = 0
-    # data allocation
-    cpT = np.zeros(t.shape, dtype=float)
-    gz = np.zeros(t.shape, dtype=float)
-    Lvq = np.zeros(t.shape, dtype=float)
-    # weight by pressure
-    for i in np.arange(len(dp_level)):
-        # weight by longitudinal length
+    for i in np.arange(len(level)-1):
         for j in np.arange(len(lat)):
-            cpT[:,i,j,:] =  constant['cp'] * t[:,i,j,:] * v[:,i,j,:] * dp_level[i] / constant['g'] * dx[j]
-            gz[:,i,j,:] = z[:,i,j,:] * v[:,i,j,:] * dp_level[i] / constant['g'] * dx[j]
-            Lvq[:,i,j,:] = constant['Lv'] * q[:,i,j,:] * v[:,i,j,:] * dp_level[i] / constant['g'] * dx[j]
-    # take the vertical profile - summation along longitude
-    cpT_vert = np.sum(cpT,3)
-    gz_vert = np.sum(gz,3)
-    Lvq_vert = np.sum(Lvq,3)
-    E_vert = cpT_vert + gz_vert + Lvq_vert
-
-    return cpT_vert, gz_vert, Lvq_vert, E_vert
+            mass_flux[:,i+1,j,:] = dx[j] * (v[:,i+1,j,:] + v[:,i,j,:]) / 2 * (lev[i+1] - lev[i]) * 100 / constant['g']
+    for i in np.arange(len(level)-1):
+        psi[:,i,:,:] = np.sum(mass_flux[:,0:i+1,:,:],1)
+    # take the vertical profile
+    t_vert = np.mean(t,3)
+    q_vert = np.mean(q,3)
+    u_vert = np.mean(u,3)
+    v_vert = np.mean(v,3)
+    gz_vert = np.mean(gz,3)
+    dudz_vert = np.mean(dudz,3)
+    psi_vert = np.mean(psi,3) * len(lon) # by definition
+    
+    return t_vert, q_vert, u_vert, v_vert, gz_vert, dudz_vert, psi_vert
 
 if __name__=="__main__":
     ####################################################################
@@ -322,34 +345,33 @@ if __name__=="__main__":
     #####   Create space for stroing data   #####
     #############################################
     # data pool
-    pool_cpT = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
-    pool_gz = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
-    pool_Lvq = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
-    pool_E = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_t = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_q = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_u = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_v = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_z = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_dudz = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_psi = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    latitude = np.zeros(Dim_latitude,dtype=float)
+    level = np.zeros(Dim_level,dtype=int)
     # loop for calculation
     for i in period:
-        # to deal with different data layout
-        if i < 2014:
-            T, q, v, z = var_retrieve_year(datapath_3D, i)
-            cpT, gz, Lvq, E = amet(T, q, v, z, level*100, lat, lon)
-        else:
-            for j in index_month:
-                pool_T = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-                pool_q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-                pool_v = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-                pool_z = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-                pool_T[j-1,:,:,:], pool_q[j-1,:,:,:], pool_v[j-1,:,:,:],\
-                pool_z[j-1,:,:,:] = var_retrieve_month(datapath_3D, i, j)
-            cpT, gz, Lvq, E = amet(pool_T, pool_q, pool_v, pool_z, level*100, lat, lon)
         # get the key of each variable
-        pool_cpT[i-1979,:,:,:] = cpT / 1E+12 # unit is tera watt
-        pool_gz[i-1979,:,:,:] = gz / 1E+12
-        pool_Lvq[i-1979,:,:,:] = Lvq / 1E+12
-        pool_E[i-1979,:,:,:] = E / 1E+12
+        var_key = var_key_retrieve(datapath_3D,i)
+        latitude = var_key.variables['latitude'][:]
+        level = var_key.variables['level'][:]
+        t, q, u, v, z, dudz, psi = retriver(var_key)
+        pool_t[i-1979,:,:,:] = t
+        pool_q[i-1979,:,:,:] = q
+        pool_u[i-1979,:,:,:] = u
+        pool_v[i-1979,:,:,:] = v
+        pool_z[i-1979,:,:,:] = z
+        pool_dudz[i-1979,:,:,:] = dudz
+        pool_psi[i-1979,:,:,:] = psi
     ####################################################################
     ######                 Data Wrapping (NetCDF)                #######
     ####################################################################
-    create_netcdf_point(pool_cpT, pool_gz, pool_Lvq,
-                        pool_E, output_path, lat, level)
-    print ('Packing 3D fields of JRA55 on pressure level is complete!!!')
+    create_netcdf_point(pool_t, pool_q, pool_u, pool_v,
+                        pool_z, pool_dudz, pool_psi, output_path)
+    print ('Packing 3D fields of ERA-Interim on pressure level is complete!!!')
     print ('The output is in sleep, safe and sound!!!')
