@@ -170,9 +170,9 @@ def retriver(var_key, lev):
     # compute the moist temperature (virtual temperature)
     Tv = T * (1 + (constant['R_vap'] / constant['R_dry'] - 1) * q)
     for i in np.arange(len(lev)):
-    	z_interim = phis + constant['R_dry'] * Tv[i,:,:] / constant['g'] * np.log(ps / lev[i])
+    	z_interim = phis / constant['g'] + constant['R_dry'] * Tv[i,:,:] / constant['g'] * np.log(ps / lev[i])
     	# below surface ->0
-    	z_interim[z_interim>ps] = 0
+    	z_interim[lev[i]>ps] = 0
     	z[i,:,:] = z_interim
     # calculate geopotential
     Z = z * constant['g']
