@@ -168,7 +168,7 @@ def var_retrieve_month(datapath, year, month, level, level_q):
     # The shape of each variable is (145,288)
     # create space for the output
     T = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-    q = np.zeros((Dim_level, Dim_latitude_q, Dim_longitude), dtype=float)
+    q = np.zeros((Dim_level_q, Dim_latitude, Dim_longitude), dtype=float)
     #u = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
     v = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
     z = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
@@ -358,8 +358,9 @@ if __name__=="__main__":
     # loop for calculation
     for i in period:
         # to deal with different data layout
+        q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
         if i < 2014:
-            T, q[lev_diff:,:,:], v,\
+            T, q[:,lev_diff:,:,:], v,\
             z = var_retrieve_year(datapath_3D, i, level, level_q)
             cpT, gz, Lvq, E = amet(T, q, v, z, level*100, lat, lon)
         else:
