@@ -136,24 +136,32 @@ def retriver(var_key, lev):
     # create arrays to store the values
     dudz = np.zeros(u.shape,dtype=float)
     for i in np.arange(len(lev)-2):
-        dudz[:,i+1,:,:] = (u[:,i,:,:] - u[:,i+2,:,:]) / (z[:,i,:,:] - z[:,i+2,:,:])
+        dudz_interim = (u[i,:,:] - u[i+2,:,:]) / (z[i,:,:] - z[i+2,:,:])
+    	# below surface ->0
+        # correction in need
+    	dudz_interim[lev[i]>ps] = 0
+        duze[i+1,:,:] = dudz_interim
     # calculate the stokes stream function
     mass_flux = np.zeros(u.shape,dtype=float)
     psi = np.zeros(u.shape,dtype=float)
     dx = 2 * np.pi * constant['R'] * np.cos(2 * np.pi * lat / 360) / len(lon)
     for i in np.arange(len(lev)-1):
         for j in np.arange(len(lat)):
-            mass_flux[:,i+1,j,:] = dx[j] * (v[:,i+1,j,:] + v[:,i,j,:]) / 2 * (lev[i+1] - lev[i]) * 100 / constant['g']
+            mass_flux_interim = dx[j] * (v[i+1,j,:] + v[i,j,:]) / 2 * (lev[i+1] - lev[i]) * 100 / constant['g']
+            # below surface ->0
+            # correction in need
+            mass_flux_interim[lev[i]>ps[j,:]] = 0
+            mass_flux[i+1,j,:] = mass_flux_interim
     for i in np.arange(len(lev)-1):
-        psi[:,i,:,:] = np.sum(mass_flux[:,0:i+1,:,:],1)
+        psi[i,:,:] = np.sum(mass_flux[0:i+1,:,:],0)
     # take the vertical profile
-    t_vert = np.mean(t,3)
-    q_vert = np.mean(q,3)
-    u_vert = np.mean(u,3)
-    v_vert = np.mean(v,3)
-    gz_vert = np.mean(gz,3)
-    dudz_vert = np.mean(dudz,3)
-    psi_vert = np.mean(psi,3) * len(lon) # by definition
+    t_vert = np.mean(T,2)
+    q_vert = np.mean(q,2)
+    u_vert = np.mean(u,2)
+    v_vert = np.mean(v,2)
+    gz_vert = np.mean(z*constant['g'],2)
+    dudz_vert = np.mean(dudz,2)
+    psi_vert = np.mean(psi,2) * len(lon) # by definition
     
     return t_vert, q_vert, u_vert, v_vert, gz_vert, dudz_vert, psi_vert
 
@@ -248,7 +256,7 @@ if __name__=="__main__":
     lon = example_key.variables['lon'][:]
     Dim_latitude = len(lat)
     Dim_longitude = len(lon)
-    Dim_level = len(lev)
+    Dim_level = len(level)
     #############################################
     #####   Create space for stroing data   #####
     #############################################
@@ -264,7 +272,7 @@ if __name__=="__main__":
     for i in period:
     	for j in index_month:
         	# get the key of each variable
-        	var_key = var_key_retrieve(datapath_3D,i,j)
+            var_key = var_key_retrieve(datapath_3D,i,j)
             t, q, u, v, z, dudz, psi = retriver(var_key, level*100)             
             # get the key of each variable
             pool_t[i-1980,j-1,:,:] = t

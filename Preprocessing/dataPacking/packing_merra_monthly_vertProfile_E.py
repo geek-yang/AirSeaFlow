@@ -236,7 +236,7 @@ if __name__=="__main__":
     lon = example_key.variables['lon'][:]
     Dim_latitude = len(lat)
     Dim_longitude = len(lon)
-    Dim_level = len(lev)
+    Dim_level = len(level)
     #############################################
     #####   Create space for stroing data   #####
     #############################################
