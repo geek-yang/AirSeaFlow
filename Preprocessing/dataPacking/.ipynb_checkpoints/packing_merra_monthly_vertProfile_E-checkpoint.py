@@ -6,14 +6,16 @@ Author          : Yang Liu (y.liu@esciencecenter.nl)
 First Built     : 2019.09.30
 Last Update     : 2019.10.03
 Contributor     :
-Description     : This module aims to load fields from the standard GRIB files
+Description     : This module aims to load fields from the standard netCDF4 files
                   downloaded directly from online data system of NCAR/UCAR Research
                   Data Archive and compute meridional energy transport at monthly scale
                   on pressure levels.
+                  
                   MERRA2 is a state-of-the-art atmosphere reanalysis product produced
                   by NASA (US). It spans from 1979 to 2017. Natively it is generated on a hybrid
-                  sigma grid with a horizontal resolution of 0.375 x 0.375 deg and 72 vertical
+                  sigma grid with a horizontal resolution of 0.5 x 0.625 deg and 42 vertical
                   levels.
+                  
                   The processing unit is monthly data, for the sake of memory saving.
                   !! This module can be used to deal with data downloaded from NASA GES system.
 Return Values   : netCDF files
@@ -31,6 +33,9 @@ Caveat!         : This module is designed to work with a batch of files. Hence, 
                   Please use the default names after downloading from NASA. 
                   The files are in netCDF format. Originally, MERRA2 has ascending lat.
                   The pressure levels are from surface to TOA.
+                  
+                  ! By default, pressure levels are with an unit of hPa,
+                  but surface pressure is Pa!
 """
 
 ##########################################################################
@@ -226,7 +231,7 @@ if __name__=="__main__":
     Dim_month = len(index_month)
     example_key = Dataset(example_path)
     # shape [1, 42, 361, 576]
-    lev = example_key.variables['lev'][:] # from surface to top 
+    level = example_key.variables['lev'][:] # from surface to top, hPa!
     lat = example_key.variables['lat'][:] # ascending
     lon = example_key.variables['lon'][:]
     Dim_latitude = len(lat)
@@ -245,8 +250,8 @@ if __name__=="__main__":
     	for j in index_month:
         	# get the key of each variable
         	var_key = var_key_retrieve(datapath_3D,i,j)
-        	t, q, v, z = retriver(var_key, lev)
-        	cpT, gz, Lvq, E = amet(t, q, v, z, lev, lat, lon)
+        	t, q, v, z = retriver(var_key, level*100)
+        	cpT, gz, Lvq, E = amet(t, q, v, z, level*100, lat, lon)
         	pool_cpT[i-1980,j-1,:,:] = cpT / 1E+12 # unit is tera watt
         	pool_gz[i-1980,j-1,:,:] = gz / 1E+12
         	pool_Lvq[i-1980,j-1,:,:] = Lvq / 1E+12
@@ -255,6 +260,6 @@ if __name__=="__main__":
     ######                 Data Wrapping (NetCDF)                #######
     ####################################################################
     create_netcdf_point(pool_cpT, pool_gz, pool_Lvq,
-                        pool_E, output_path, lev, lat)
+                        pool_E, output_path, level, lat)
     print ('Packing 3D fields of MERRA2 on pressure level is complete!!!')
     print ('The output is in sleep, safe and sound!!!')

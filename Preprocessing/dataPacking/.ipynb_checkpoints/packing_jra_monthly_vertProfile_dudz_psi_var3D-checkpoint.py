@@ -294,7 +294,7 @@ def create_netcdf_point (pool_t_vert, pool_q_vert, pool_u_vert, pool_v_vert,
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
     
-def calc(t, q, u, v, z, level, lat, lon):
+def calc(t, q, u, v, gz, level, lat, lon):
     print ('Extract monthly mean fields.')
     # calculate the height
     z = gz / constant['g']
@@ -382,7 +382,7 @@ if __name__=="__main__":
             T, q[:,lev_diff:,:,:], u, v,\
             z = var_retrieve_year(datapath_3D, i, level, level_q)
             t_vert, q_vert, u_vert, v_vert, z_vert, dudz,\
-            psi = calc(T, q, v, z, level, lat, lon)
+            psi = calc(T, q, u, v, z, level, lat, lon)
         else:
             for j in index_month:
                 fields_T = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
