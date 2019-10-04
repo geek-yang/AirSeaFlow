@@ -90,13 +90,16 @@ output_path = '/project/Reanalysis/JRA55/Monthly/output'
 example = '/project/Reanalysis/JRA55/Monthly/pressure/anl_p125.011_tmp.201301_201312'
 ####################################################################################
 
-def var_retrieve_year(datapath, year):
+def var_retrieve_year(datapath, year, level, level_q):
+    """
+    The vertical levels for specific humidity and other variables are different!
+    """
     # get the path to each datasets
     print ("Start retrieving datasets {0} (y)".format(year))
     # The shape of each variable is (145,288)
     # create space for the output
     T = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-    q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    q = np.zeros((Dim_month, Dim_level_q, Dim_latitude, Dim_longitude), dtype=float)
     #u = np.zeros((len(month),len(lat),len(lon)), dtype=float)
     v = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
     z = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
@@ -119,7 +122,6 @@ def var_retrieve_year(datapath, year):
     while (counter_message <= Dim_level*12):
         # take the key
         key_T = key_tmp.message(counter_message)
-        key_q = key_spfh.message(counter_message)
         key_v = key_vgrd.message(counter_message)
         key_z = key_hgt.message(counter_message)
         # 27 levels (0-26) # descending
@@ -128,9 +130,25 @@ def var_retrieve_year(datapath, year):
             counter_time = counter_time + 1
         # take the values
         T[counter_time,counter_lev,:,:] = key_T.values
-        q[counter_time,counter_lev,:,:] = key_q.values
         v[counter_time,counter_lev,:,:] = key_v.values
         z[counter_time,counter_lev,:,:] = key_z.values
+        # push the counter
+        counter_lev = counter_lev + 1
+        counter_message = counter_message + 1
+    # for q
+    # reset counters
+    counter_time = 0
+    counter_lev = 0
+    counter_message = 1
+    while (counter_message <= Dim_level_q*12):
+        # take the key
+        key_q = key_spfh.message(counter_message)
+        # 27 levels (0-26) # descending
+        if counter_lev == Dim_level_q:
+            counter_lev = 0
+            counter_time = counter_time + 1
+        # take the values
+        q[counter_time,counter_lev,:,:] = key_q.values
         # push the counter
         counter_lev = counter_lev + 1
         counter_message = counter_message + 1
@@ -144,13 +162,13 @@ def var_retrieve_year(datapath, year):
     print ("Retrieving datasets successfully and return the variables!")
     return T, q, v, z
 
-def var_retrieve_month(datapath, year, month):
+def var_retrieve_month(datapath, year, month, level, level_q):
     # get the path to each datasets
     print ("Start retrieving datasets {0} (y) {1} (m)".format(year, namelist_month[month-1]))
     # The shape of each variable is (145,288)
     # create space for the output
     T = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-    q = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
+    q = np.zeros((Dim_level, Dim_latitude_q, Dim_longitude), dtype=float)
     #u = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
     v = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
     z = np.zeros((Dim_level, Dim_latitude, Dim_longitude), dtype=float)
@@ -172,15 +190,24 @@ def var_retrieve_month(datapath, year, month):
     while (counter_message <= Dim_level):
         # take the key
         key_T = key_tmp.message(counter_message)
-        key_q = key_spfh.message(counter_message)
         key_v = key_vgrd.message(counter_message)
         key_z = key_hgt.message(counter_message)
         # 27 levels (0-26) # descending
         # take the values
         T[counter_lev,:,:] = key_T.values
-        q[counter_lev,:,:] = key_q.values
         v[counter_lev,:,:] = key_v.values
         z[counter_lev,:,:] = key_z.values
+        # push the counter
+        counter_lev = counter_lev + 1
+        counter_message = counter_message + 1
+    # reset counters
+    counter_lev = 0
+    counter_message = 1
+    while (counter_message <= Dim_level_q):
+        # take the key
+        key_q = key_spfh.message(counter_message)
+        # take the values
+        q[counter_lev,:,:] = key_q.values
         # push the counter
         counter_lev = counter_lev + 1
         counter_message = counter_message + 1
@@ -309,6 +336,7 @@ if __name__=="__main__":
                        700, 750, 775, 800, 825,
                        850, 875, 900, 925, 950,
                        975, 1000]),dtype=int)
+    lev_diff = len(level) - len(level_q)
     ####################################################################
     ######       Extract invariant and calculate constants       #######
     ####################################################################
@@ -318,6 +346,7 @@ if __name__=="__main__":
     Dim_latitude = len(lat)
     Dim_longitude = len(lon)
     Dim_level = len(level)
+    Dim_level_q = len(level_q)
     #############################################
     #####   Create space for stroing data   #####
     #############################################
@@ -330,7 +359,8 @@ if __name__=="__main__":
     for i in period:
         # to deal with different data layout
         if i < 2014:
-            T, q, v, z = var_retrieve_year(datapath_3D, i)
+            T, q[lev_diff:,:,:], v,\
+            z = var_retrieve_year(datapath_3D, i, level, level_q)
             cpT, gz, Lvq, E = amet(T, q, v, z, level*100, lat, lon)
         else:
             for j in index_month:
@@ -338,8 +368,8 @@ if __name__=="__main__":
                 pool_q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
                 pool_v = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
                 pool_z = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
-                pool_T[j-1,:,:,:], pool_q[j-1,:,:,:], pool_v[j-1,:,:,:],\
-                pool_z[j-1,:,:,:] = var_retrieve_month(datapath_3D, i, j)
+                pool_T[j-1,:,:,:], pool_q[j-1,lev_diff:,:,:], pool_v[j-1,:,:,:],\
+                pool_z[j-1,:,:,:] = var_retrieve_month(datapath_3D, i, j, level, level_q)
             cpT, gz, Lvq, E = amet(pool_T, pool_q, pool_v, pool_z, level*100, lat, lon)
         # get the key of each variable
         pool_cpT[i-1979,:,:,:] = cpT / 1E+12 # unit is tera watt
