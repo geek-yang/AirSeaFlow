@@ -140,6 +140,10 @@ def retriver(var_key, lev):
     	# below surface ->0
         # correction in need
     	dudz_interim[lev[i]>ps] = 0
+        dudz_interim[dudz_interim>1.0] = 0
+        dudz_interim[dudz_interim<-1.0] = 0
+        dudz_interim[u[i,:,:]>1000] = 0
+        dudz_interim[u[i+2,:,:]>1000] = 0
         duze[i+1,:,:] = dudz_interim
     # calculate the stokes stream function
     mass_flux = np.zeros(u.shape,dtype=float)
@@ -151,6 +155,7 @@ def retriver(var_key, lev):
             # below surface ->0
             # correction in need
             mass_flux_interim[lev[i]>ps[j,:]] = 0
+            mass_flux_interim[v[i+1,j,:]>1000] = 0
             mass_flux[i+1,j,:] = mass_flux_interim
     for i in np.arange(len(lev)-1):
         psi[i,:,:] = np.sum(mass_flux[0:i+1,:,:],0)
