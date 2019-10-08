@@ -43,6 +43,7 @@ variables       : Absolute Temperature              T
 		          Surface geopotential  	        z
 Caveat!!	    : The dataset is from 20 deg north to 90 deg north (Northern Hemisphere).
 		          Attention should be paid when calculating the meridional grid length (dy)!
+                  The temporal resolution is 3 hourly.
 
 """
 
@@ -95,7 +96,7 @@ end_year = 2017
 # choose the slice number for the vertical layer
 #  pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
 lev_slice = 0
-target_lev = [22, 20, 18, 16, 14, 10, 6, 2]
+target_lev = [7, 6, 5, 4, 3, 2, 1, 0]
 name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
 # specify data path
 # ERAI 3D fields on pressure level
@@ -105,13 +106,23 @@ datapath = '/project/0/blueactn/reanalysis/MERRA2/subdaily/pressure'
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
 output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
 # benchmark datasets for basic dimensions
-benchmark_file = 'pressure_daily_075_diagnostic_1998_3_all.nc'
-benchmark = Dataset(os.path.join(datapath, 'era1998', benchmark_file))
+benchmark_file = 'MERRA2_300.inst3_3d_asm_Np.20091223.SUB.nc'
+benchmark = Dataset(os.path.join(datapath, 'merra1998_Np', benchmark_file))
 ####################################################################################
 
-def var_key_retrieve(datapath, year, month):
+def var_key_retrieve(datapath, year, month, day):
     # get the path to each datasets
     print ("Start retrieving datasets {} (y) {} (m)".format(year,month))
+    if year < 1992:
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_100.inst3_3d_asm_Np.{0}{1}{2}.nc4.nc'.format(year, namelist_month[month-1], day))
+    elif year < 2001:
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_200.inst3_3d_asm_Np.{0}1231.nc4.nc'.format(year, namelist_month[month-1], day))
+    elif year < 2011:
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_300.inst3_3d_asm_Np.{0}1231.nc4.nc'.format(year, namelist_month[month-1], day))
+    else:
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_400.inst3_3d_asm_Np.{0}1231.nc4.nc'.format(year, namelist_month[month-1], day))
+    # get the variable key
+    var_last = Dataset(datapath_last)
     # The shape of each variable is (241,480)
     datapath = os.path.join(datapath, 'merra{}_Np'.format(year),
                             'pressure_daily_075_diagnostic_{}_{}_all.nc'.format(year,month))

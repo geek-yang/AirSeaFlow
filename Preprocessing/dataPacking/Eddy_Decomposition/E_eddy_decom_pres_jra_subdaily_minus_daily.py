@@ -64,7 +64,7 @@ Caveat!!	    : This module is designed to work with a batch of files. Hence, the
 
                   Please use the default names after downloading from NCAR/UCAR Research
                   Data Archive. The files are in GRIB format. Originally, JRA55 has descending lat.
-                  The pressure levels are from TOA to surface.
+                  The pressure levels are from TOA to surface. The temporal resolution is 6 hourly.
 """
 
 import sys
@@ -134,16 +134,39 @@ datapath = '/project/0/blueactn/reanalysis/JRA55/subdaily/pressure'
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
 output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
 # benchmark datasets for basic dimensions
-benchmark_file = 'pressure_daily_075_diagnostic_1998_3_all.nc'
-benchmark = Dataset(os.path.join(datapath, 'era1998', benchmark_file))
+benchmark_file = 'anl_p125.007_hgt.1980030100_1980033118'
+benchmark = os.path.join(datapath, 'jra1980_p', benchmark_file)
 ####################################################################################
 
-def var_key_retrieve(datapath, year, month):
+def var_key_retrieve(datapath, year, month, index_month, long_month_list,
+                     leap_year_list,):
     # get the path to each datasets
     print ("Start retrieving datasets {} (y) {} (m)".format(year,month))
-    # The shape of each variable is (241,480)
-    datapath = os.path.join(datapath, 'jra{}_p'.format(year),
-                            'pressure_daily_075_diagnostic_{}_{}_all.nc'.format(year,month))
+    # The shape of each variable is ()
+    # determine how many days are there in a month
+    if month in long_month_list:
+        last_day = 31
+    elif month == 2:
+        if i in leap_year_list:
+            last_day = 29
+        else:
+            last_day = 28
+    else:
+        last_day = 30
+    # create space for the output
+    var_v =
+    , var_T, var_q, var_z
+    # get the keys of data
+    key_tmp = pygrib.open(os.path.join(datapath, 'jra{0}_p'.format(year),
+                          'anl_p125.011_tmp.{0}{1}0100_{2}{3}{4}18'.format(year, namelist_month[month-1], year, namelist_month[month-1], last_day)))
+    key_spfh = pygrib.open(os.path.join(datapath, 'jra{0}_p'.format(year),
+                           'anl_p125.051_spfh.{0}{1}0100_{2}{3}{4}18'.format(year, namelist_month[month-1], year, namelist_month[month-1], last_day)))
+    key_vgrd = pygrib.open(os.path.join(datapath, 'jra{0}_p'.format(year),
+                           'anl_p125.034_vgrd.{0}{1}0100_{2}{3}{4}18'.format(year, namelist_month[month-1], year, namelist_month[month-1], last_day)))
+    key_hgt = pygrib.open(os.path.join(datapath, 'jra{0}_p'.format(year),
+                          'anl_p125.007_hgt.{0}{1}0100_{2}{3}{4}18'.format(year, namelist_month[month-1], year, namelist_month[month-1], last_day)))
+
+
     # get the variable keys
     var_key = Dataset(datapath)
 
@@ -152,15 +175,24 @@ def var_key_retrieve(datapath, year, month):
 
 def initialization(benchmark):
     print ("Prepare for the main work!")
-    # create the month index
+    # date and time arrangement
+    # namelist of month and days for file manipulation
+    namelist_month = ['01','02','03','04','05','06','07','08','09','10','11','12']
+    long_month_list = np.array([1,3,5,7,8,10,12])
+    leap_year_list = np.array([1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020])
+    # index of months
     period = np.arange(start_year,end_year+1,1)
     index_month = np.arange(1,13,1)
+    example_grbs = pygrib.open(benchmark)
+    example_key = example_grbs.message(1)
+    lats, lons = example_key.latlons()
+    lat = lats[:,0] # descending
+    lon = lons[0,:]
     # create dimensions for saving data
-    #Dim_level = len(benchmark.variables['level'][:])
-    Dim_latitude = len(benchmark.variables['latitude'][:])
-    Dim_longitude = len(benchmark.variables['longitude'][:])
+    Dim_year = len(period)
     Dim_month = len(index_month)
-    Dim_period = len(period)
+    Dim_latitude = len(lat)
+    Dim_longitude = len(lon)
     #latitude = benchmark.variables['latitude'][:]
     #longitude = benchmark.variables['longitude'][:]
     #Dim_time = len(benchmark.variables['time'][:])
@@ -172,9 +204,9 @@ def initialization(benchmark):
     T_temporal_sum = np.zeros((365,Dim_latitude,Dim_longitude),dtype=float)
     q_temporal_sum = np.zeros((365,Dim_latitude,Dim_longitude),dtype=float)
     z_temporal_sum = np.zeros((365,Dim_latitude,Dim_longitude),dtype=float)
-    return period, index_month, Dim_latitude, Dim_longitude, Dim_month, Dim_period,\
-           month_day_length, month_day_index, v_temporal_sum, T_temporal_sum,\
-           q_temporal_sum, z_temporal_sum
+    return period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,\
+           Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index,\
+           v_temporal_sum, T_temporal_sum, q_temporal_sum, z_temporal_sum
 
 def pick_var(var_key):
     # validate time and location info
@@ -589,9 +621,9 @@ if __name__=="__main__":
     # calculate the time for the code execution
     start_time = tttt.time()
     # initialization
-    period, index_month, Dim_latitude, Dim_longitude, Dim_month, Dim_period,\
-    month_day_length, month_day_index, v_temporal_sum, T_temporal_sum, q_temporal_sum,\
-    z_temporal_sum  = initialization(benchmark)
+    period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,
+    Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, v_temporal_sum,
+    T_temporal_sum, q_temporal_sum, z_temporal_sum  = initialization(benchmark)
     print ('*******************************************************************')
     print ('************  calculate the temporal and spatial mean  ************')
     print ('*******************************************************************')
