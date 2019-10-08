@@ -4,7 +4,7 @@ Copyright Netherlands eScience Center
 Function        : Quantify stationary and transient eddy from atmospheric meridional energy transport (MERRA2)(HPC-cloud customised)
 Author          : Yang Liu
 Date            : 2018.11.30
-Last Update     : 2019.09.30
+Last Update     : 2019.10.09
 Description     : The code aims to calculate the time and space dependent components
                   of atmospheric meridional energy transport based on atmospheric
                   reanalysis dataset MERRA2 from NASA. The complete procedure
@@ -75,6 +75,18 @@ constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
             'R_dry' : 286.9,    # gas constant of dry air [J/(kg*K)]
             'R_vap' : 461.5,    # gas constant for water vapour [J/(kg*K)]
             }
+##########################################################################
+###########################   level information  #########################
+level = np.array(([1000, 975, 950, 925, 900,
+                   875, 850, 825, 800, 775,
+                   750, 725, 700, 650, 600,
+                   550, 500, 450, 400, 350,
+                   300, 250, 200, 150, 100,
+                   70, 50, 40, 30, 20,
+                   10, 7, 5, 4, 3,
+                   2, 1, 0.699999988079071, 0.5, 0.400000005960464,
+                   0.300000011920929, 0.100000001490116]),dtype=int)
+##########################################################################
 
 ################################   Input zone  ######################################
 # specify starting and ending time
@@ -83,6 +95,8 @@ end_year = 2017
 # choose the slice number for the vertical layer
 #  pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
 lev_slice = 0
+target_lev = [22, 20, 18, 16, 14, 10, 6, 2]
+name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
 # specify data path
 # ERAI 3D fields on pressure level
 #datapath = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression/pressure/daily'
