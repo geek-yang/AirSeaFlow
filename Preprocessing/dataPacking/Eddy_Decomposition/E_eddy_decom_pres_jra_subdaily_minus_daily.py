@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
 Copyright Netherlands eScience Center
-Function        : Quantify stationary and transient eddy from atmospheric meridional energy transport (JRA55)(HPC-cloud customised)
+Function        : Quantify stationary and transient eddy from atmospheric meridional energy transport (JRA55)(Cartesius customised)
 Author          : Yang Liu
 Date            : 2018.11.30
-Last Update     : 2019.09.30
+Last Update     : 2019.10.04
 Description     : The code aims to calculate the time and space dependent components
                   of atmospheric meridional energy transport based on atmospheric
-                  reanalysis dataset ERA-Interim from ECMWF. The complete procedure
+                  reanalysis dataset JRA55 from JMA. The complete procedure
                   includes the ecomposition of standing & transient eddies.
                   Much attention should be paid that we have to use daily
                   mean since the decomposition takes place at subdaily level could introduce
@@ -37,12 +37,34 @@ Return Value    : NetCFD4 data file
 Dependencies    : os, time, numpy, netCDF4, sys, matplotlib
 variables       : Absolute Temperature              T
                   Specific Humidity                 q
-                  Logarithmic Surface Pressure      lnsp
+                  Surface Pressure                  sp
                   Zonal Divergent Wind              u
                   Meridional Divergent Wind         v
 		          Surface geopotential  	        z
-Caveat!!	    : The dataset is from 20 deg north to 90 deg north (Northern Hemisphere).
-		          Attention should be paid when calculating the meridional grid length (dy)!
+Caveat!!	    : This module is designed to work with a batch of files. Hence, there is
+                  pre-requists for the location and arrangement of data. The folder should
+                  have the following structure:
+                  /JRA55
+                      /anl_p125.007_hgt.197901_197912
+                      /anl_p125.007_hgt.198001_198012
+                      ...
+                      /anl_p125.011_tmp.198001_198012
+                      ...
+                      /anl_p125.033_ugrd.198001_198012
+                      ...
+                      /anl_p125.034_vgrd.198001_198012
+                      ...
+                      /anl_p125.051_spfh.198001_198012
+                      ...
+                      (since 2014)
+                      /anl_p125_hgt.201401
+                      /anl_p125_hgt.201402
+                      /anl_p125_hgt.201403
+                      ...
+
+                  Please use the default names after downloading from NCAR/UCAR Research
+                  Data Archive. The files are in GRIB format. Originally, JRA55 has descending lat.
+                  The pressure levels are from TOA to surface.
 """
 
 import sys
@@ -74,17 +96,40 @@ constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
             'R_vap' : 461.5,    # gas constant for water vapour [J/(kg*K)]
             }
 
+
+##########################################################################
+###########################   level information  #########################
+level = np.array(([1, 2, 3, 5, 7,
+                   10, 20, 30, 50, 70,
+                   100, 125, 150, 175, 200,
+                   225, 250, 300, 350, 400,
+                   450, 500, 550, 600, 650,
+                   700, 750, 775, 800, 825,
+                   850, 875, 900, 925, 950,
+                   975, 1000]),dtype=int)
+
+level_q = np.array(([100, 125, 150, 175, 200,
+                     225, 250, 300, 350, 400,
+                     450, 500, 550, 600, 650,
+                     700, 750, 775, 800, 825,
+                     850, 875, 900, 925, 950,
+                     975, 1000]),dtype=int)
+##########################################################################
+
 ################################   Input zone  ######################################
 # specify starting and ending time
 start_year = 1979
 end_year = 2017
 # choose the slice number for the vertical layer
 #  pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
-lev_slice = 0
+# corresponding level index: (0)
+lev_slice = 0 #
+target_lev = [0,1]
+name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
 # specify data path
 # ERAI 3D fields on pressure level
 #datapath = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression/pressure/daily'
-datapath = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/T_v_z_q'
+datapath = '/project/0/blueactn/reanalysis/JRA55/subdaily/pressure'
 # specify output path for figures
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
 output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
@@ -97,7 +142,7 @@ def var_key_retrieve(datapath, year, month):
     # get the path to each datasets
     print ("Start retrieving datasets {} (y) {} (m)".format(year,month))
     # The shape of each variable is (241,480)
-    datapath = os.path.join(datapath, 'era{}'.format(year),
+    datapath = os.path.join(datapath, 'jra{}_p'.format(year),
                             'pressure_daily_075_diagnostic_{}_{}_all.nc'.format(year,month))
     # get the variable keys
     var_key = Dataset(datapath)
@@ -313,15 +358,15 @@ def compute_eddy(var_v_temporal_mean_select, var_T_temporal_mean_select,
     var_T_monthly_mean = np.mean(var_T,0)
     var_T_monthly_zonal_mean = np.mean(var_T_monthly_mean,1)
     var_T_monthly_zonal_mean_enlarge = np.repeat(var_T_monthly_zonal_mean[:,np.newaxis],Dim_longitude,1)
-    var_T_star_monthly_zonal_mean = var_T_monthly_mean - var_T_monthly_zonal_mean_enlarge    
+    var_T_star_monthly_zonal_mean = var_T_monthly_mean - var_T_monthly_zonal_mean_enlarge
     var_q_monthly_mean = np.mean(var_q,0)
     var_q_monthly_zonal_mean = np.mean(var_q_monthly_mean,1)
     var_q_monthly_zonal_mean_enlarge = np.repeat(var_q_monthly_zonal_mean[:,np.newaxis],Dim_longitude,1)
-    var_q_star_monthly_zonal_mean = var_q_monthly_mean - var_q_monthly_zonal_mean_enlarge    
+    var_q_star_monthly_zonal_mean = var_q_monthly_mean - var_q_monthly_zonal_mean_enlarge
     var_z_monthly_mean = np.mean(var_z,0)
     var_z_monthly_zonal_mean = np.mean(var_z_monthly_mean,1)
     var_z_monthly_zonal_mean_enlarge = np.repeat(var_z_monthly_zonal_mean[:,np.newaxis],Dim_longitude,1)
-    var_z_star_monthly_zonal_mean = var_z_monthly_mean - var_z_monthly_zonal_mean_enlarge    
+    var_z_star_monthly_zonal_mean = var_z_monthly_mean - var_z_monthly_zonal_mean_enlarge
     # monthly mean
     # shape[lat,lon]
     var_cpT_stationary_mean_monthly_mean = var_v_star_monthly_zonal_mean * var_T_star_monthly_zonal_mean
@@ -426,7 +471,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     # variable attributes
     lat_wrap_var.units = 'degree_north'
     lon_wrap_var.units = 'degree_east'
-    
+
     var_cpT_overall_wrap_var.units = 'K m/s'
     var_cpT_transient_wrap_var.units = 'K m/s'
     var_cpT_standing_wrap_var.units = 'K m/s'
@@ -458,11 +503,11 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     var_gz_transient_mean_wrap_var.units = 'm3/s3'
     var_gz_standing_zonal_wrap_var.units = 'm3/s3'
     var_gz_stationary_mean_zonal_wrap_var.units = 'm3/s3'
-    var_gz_steady_mean_wrap_var.units = 'm3/s3'    
-    
+    var_gz_steady_mean_wrap_var.units = 'm3/s3'
+
     lat_wrap_var.long_name = 'Latitude'
     lon_wrap_var.long_name = 'Longitude'
-    
+
     var_cpT_overall_wrap_var.long_name = 'Northward transport of temperature by all motions'
     var_cpT_transient_wrap_var.long_name = 'Northward transport of temperature by transient eddy'
     var_cpT_standing_wrap_var.long_name = 'Northward transport of temperature by standing eddy'
@@ -496,13 +541,13 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     var_gz_stationary_mean_zonal_wrap_var.long_name = 'Zonal mean of northward transport of geopotential by stationary mean eddy'
     var_gz_steady_mean_wrap_var.long_name = 'Northward transport of geopotential by steady mean meridional circulation'
 
-    
+
     # writing data
     year_wrap_var[:] = period
     month_wrap_var[:] = index_month
     lat_wrap_var[:] = benchmark.variables['latitude'][:]
     lon_wrap_var[:] = benchmark.variables['longitude'][:]
-    
+
     var_cpT_overall_wrap_var[:] = var_cpT_overall
     var_cpT_transient_wrap_var[:] = var_cpT_transient
     var_cpT_standing_wrap_var[:] = var_cpT_standing
@@ -524,7 +569,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     var_Lvq_standing_zonal_wrap_var[:] = var_Lvq_standing_zonal
     var_Lvq_stationary_mean_zonal_wrap_var[:] = var_Lvq_stationary_mean_zonal
     var_Lvq_steady_mean_wrap_var[:] = var_Lvq_steady_mean
-    
+
     var_gz_overall_wrap_var[:] = var_gz_overall
     var_gz_transient_wrap_var[:] = var_gz_transient
     var_gz_standing_wrap_var[:] = var_gz_standing
@@ -539,7 +584,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     # close the file
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
-    
+
 if __name__=="__main__":
     # calculate the time for the code execution
     start_time = tttt.time()

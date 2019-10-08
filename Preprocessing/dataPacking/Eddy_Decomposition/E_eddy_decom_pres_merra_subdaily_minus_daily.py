@@ -7,7 +7,7 @@ Date            : 2018.11.30
 Last Update     : 2019.09.30
 Description     : The code aims to calculate the time and space dependent components
                   of atmospheric meridional energy transport based on atmospheric
-                  reanalysis dataset ERA-Interim from ECMWF. The complete procedure
+                  reanalysis dataset MERRA2 from NASA. The complete procedure
                   includes the ecomposition of standing & transient eddies.
                   Much attention should be paid that we have to use daily
                   mean since the decomposition takes place at subdaily level could introduce
@@ -43,6 +43,7 @@ variables       : Absolute Temperature              T
 		          Surface geopotential  	        z
 Caveat!!	    : The dataset is from 20 deg north to 90 deg north (Northern Hemisphere).
 		          Attention should be paid when calculating the meridional grid length (dy)!
+
 """
 
 import sys
@@ -65,6 +66,7 @@ import os
 # and factor 1/g: [J m2 / s3] * [s2 /m2] = [J / s] = [Wat]
 ##########################################################################
 
+
 # constants
 constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
             'R' : 6371009,      # radius of the earth [m]
@@ -84,7 +86,7 @@ lev_slice = 0
 # specify data path
 # ERAI 3D fields on pressure level
 #datapath = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression/pressure/daily'
-datapath = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/T_v_z_q'
+datapath = '/project/0/blueactn/reanalysis/MERRA2/subdaily/pressure'
 # specify output path for figures
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
 output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
@@ -97,7 +99,7 @@ def var_key_retrieve(datapath, year, month):
     # get the path to each datasets
     print ("Start retrieving datasets {} (y) {} (m)".format(year,month))
     # The shape of each variable is (241,480)
-    datapath = os.path.join(datapath, 'era{}'.format(year),
+    datapath = os.path.join(datapath, 'merra{}_Np'.format(year),
                             'pressure_daily_075_diagnostic_{}_{}_all.nc'.format(year,month))
     # get the variable keys
     var_key = Dataset(datapath)
@@ -313,15 +315,15 @@ def compute_eddy(var_v_temporal_mean_select, var_T_temporal_mean_select,
     var_T_monthly_mean = np.mean(var_T,0)
     var_T_monthly_zonal_mean = np.mean(var_T_monthly_mean,1)
     var_T_monthly_zonal_mean_enlarge = np.repeat(var_T_monthly_zonal_mean[:,np.newaxis],Dim_longitude,1)
-    var_T_star_monthly_zonal_mean = var_T_monthly_mean - var_T_monthly_zonal_mean_enlarge    
+    var_T_star_monthly_zonal_mean = var_T_monthly_mean - var_T_monthly_zonal_mean_enlarge
     var_q_monthly_mean = np.mean(var_q,0)
     var_q_monthly_zonal_mean = np.mean(var_q_monthly_mean,1)
     var_q_monthly_zonal_mean_enlarge = np.repeat(var_q_monthly_zonal_mean[:,np.newaxis],Dim_longitude,1)
-    var_q_star_monthly_zonal_mean = var_q_monthly_mean - var_q_monthly_zonal_mean_enlarge    
+    var_q_star_monthly_zonal_mean = var_q_monthly_mean - var_q_monthly_zonal_mean_enlarge
     var_z_monthly_mean = np.mean(var_z,0)
     var_z_monthly_zonal_mean = np.mean(var_z_monthly_mean,1)
     var_z_monthly_zonal_mean_enlarge = np.repeat(var_z_monthly_zonal_mean[:,np.newaxis],Dim_longitude,1)
-    var_z_star_monthly_zonal_mean = var_z_monthly_mean - var_z_monthly_zonal_mean_enlarge    
+    var_z_star_monthly_zonal_mean = var_z_monthly_mean - var_z_monthly_zonal_mean_enlarge
     # monthly mean
     # shape[lat,lon]
     var_cpT_stationary_mean_monthly_mean = var_v_star_monthly_zonal_mean * var_T_star_monthly_zonal_mean
@@ -426,7 +428,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     # variable attributes
     lat_wrap_var.units = 'degree_north'
     lon_wrap_var.units = 'degree_east'
-    
+
     var_cpT_overall_wrap_var.units = 'K m/s'
     var_cpT_transient_wrap_var.units = 'K m/s'
     var_cpT_standing_wrap_var.units = 'K m/s'
@@ -458,11 +460,11 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     var_gz_transient_mean_wrap_var.units = 'm3/s3'
     var_gz_standing_zonal_wrap_var.units = 'm3/s3'
     var_gz_stationary_mean_zonal_wrap_var.units = 'm3/s3'
-    var_gz_steady_mean_wrap_var.units = 'm3/s3'    
-    
+    var_gz_steady_mean_wrap_var.units = 'm3/s3'
+
     lat_wrap_var.long_name = 'Latitude'
     lon_wrap_var.long_name = 'Longitude'
-    
+
     var_cpT_overall_wrap_var.long_name = 'Northward transport of temperature by all motions'
     var_cpT_transient_wrap_var.long_name = 'Northward transport of temperature by transient eddy'
     var_cpT_standing_wrap_var.long_name = 'Northward transport of temperature by standing eddy'
@@ -496,13 +498,13 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     var_gz_stationary_mean_zonal_wrap_var.long_name = 'Zonal mean of northward transport of geopotential by stationary mean eddy'
     var_gz_steady_mean_wrap_var.long_name = 'Northward transport of geopotential by steady mean meridional circulation'
 
-    
+
     # writing data
     year_wrap_var[:] = period
     month_wrap_var[:] = index_month
     lat_wrap_var[:] = benchmark.variables['latitude'][:]
     lon_wrap_var[:] = benchmark.variables['longitude'][:]
-    
+
     var_cpT_overall_wrap_var[:] = var_cpT_overall
     var_cpT_transient_wrap_var[:] = var_cpT_transient
     var_cpT_standing_wrap_var[:] = var_cpT_standing
@@ -524,7 +526,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     var_Lvq_standing_zonal_wrap_var[:] = var_Lvq_standing_zonal
     var_Lvq_stationary_mean_zonal_wrap_var[:] = var_Lvq_stationary_mean_zonal
     var_Lvq_steady_mean_wrap_var[:] = var_Lvq_steady_mean
-    
+
     var_gz_overall_wrap_var[:] = var_gz_overall
     var_gz_transient_wrap_var[:] = var_gz_transient
     var_gz_standing_wrap_var[:] = var_gz_standing
@@ -539,7 +541,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     # close the file
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
-    
+
 if __name__=="__main__":
     # calculate the time for the code execution
     start_time = tttt.time()
