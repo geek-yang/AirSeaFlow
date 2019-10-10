@@ -12,9 +12,11 @@ Description     : The code aims to calculate the time and space dependent compon
                   Much attention should be paid that we have to use daily
                   mean since the decomposition takes place at subdaily level could introduce
                   non-meaningful oscillation due to daily cycling.
+
                   The procedure is generic and is able to adapt any atmospheric
                   reanalysis datasets, with some changes.
-                  Referring to the book "Physics of Climate", the concept of decomposition
+
+                  In the sentence of the book "Physics of Climate", the concept of decomposition
                   of circulation is given with full details. As a consequence, the meridional
                   energy transport can be decomposed into 4 parts:
                   @@@   A = [/overbar{A}] + /ovrebar{A*} + [A]' + A'*   @@@
@@ -29,22 +31,37 @@ Description     : The code aims to calculate the time and space dependent compon
                   [/overbar{v}] x [/overbar{T}]:    energy transport by steady mean circulation
                   [/overbar{v}* x /overbar{T}*]:    energy transport by stationary eddy
                   [/overbar{v'T'}]:                 energy transport by transient eddy
+
                   Due to a time dependent surface pressure, we will take the vertical
                   integral first and then decompose the total energy transport. Hence,
                   we actually harness the equation of single variable. Thus, we will calculate
                   all the 4 components.
+
 Return Value    : NetCFD4 data file
 Dependencies    : os, time, numpy, netCDF4, sys, matplotlib
 variables       : Absolute Temperature              T
                   Specific Humidity                 q
-                  Logarithmic Surface Pressure      lnsp
+                  Surface Pressure                  lnsp
                   Zonal Divergent Wind              u
                   Meridional Divergent Wind         v
-		          Surface geopotential  	        z
-Caveat!!	    : The dataset is from 20 deg north to 90 deg north (Northern Hemisphere).
-		          Attention should be paid when calculating the meridional grid length (dy)!
-                  The temporal resolution is 3 hourly.
+                  Surface geopotential              z
 
+Caveat!!        : This module is designed to work with a batch of files. Hence, there is
+                  pre-requists for the location and arrangement of data. The folder should
+                  have the following structure:
+                  /MERRA2
+                      /MERRA2_100.instM_3d_asm_Np.198001.nc4.nc
+                      /MERRA2_100.instM_3d_asm_Np.198002.nc4.nc
+                      ...
+                      /MERRA2_200.instM_3d_asm_Np.199201.nc4.nc
+                      ...
+                      ...
+                  Please use the default names after downloading from NASA. 
+                  The files are in netCDF format. Originally, MERRA2 has ascending lat.
+                  The pressure levels are from surface to TOA.
+                  
+                  The data is saved on a descending pressure coordinate. In order
+                  to use the script, the data should have an ascending coordinate.
 """
 
 import sys
@@ -67,7 +84,6 @@ import os
 # and factor 1/g: [J m2 / s3] * [s2 /m2] = [J / s] = [Wat]
 ##########################################################################
 
-
 # constants
 constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
             'R' : 6371009,      # radius of the earth [m]
@@ -78,20 +94,20 @@ constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
             }
 ##########################################################################
 ###########################   level information  #########################
-level = np.array(([1000, 975, 950, 925, 900,
-                   875, 850, 825, 800, 775,
-                   750, 725, 700, 650, 600,
-                   550, 500, 450, 400, 350,
-                   300, 250, 200, 150, 100,
-                   70, 50, 40, 30, 20,
-                   10, 7, 5, 4, 3,
-                   2, 1, 0.699999988079071, 0.5, 0.400000005960464,
-                   0.300000011920929, 0.100000001490116]),dtype=int)
+native_level = np.array(([1000, 975, 950, 925, 900,
+                          875, 850, 825, 800, 775,
+                          750, 725, 700, 650, 600,
+                          550, 500, 450, 400, 350,
+                          300, 250, 200, 150, 100,
+                          70, 50, 40, 30, 20,
+                          10, 7, 5, 4, 3,
+                          2, 1, 0.699999988079071, 0.5, 0.400000005960464,
+                          0.300000011920929, 0.100000001490116]),dtype=int)
 ##########################################################################
 
 ################################   Input zone  ######################################
 # specify starting and ending time
-start_year = 1979
+start_year = 1980
 end_year = 2017
 # choose the slice number for the vertical layer
 #  pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
@@ -107,25 +123,20 @@ datapath = '/project/0/blueactn/reanalysis/MERRA2/subdaily/pressure'
 output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
 # benchmark datasets for basic dimensions
 benchmark_file = 'MERRA2_300.inst3_3d_asm_Np.20091223.SUB.nc'
-benchmark = Dataset(os.path.join(datapath, 'merra1998_Np', benchmark_file))
+benchmark = Dataset(os.path.join(datapath, 'merra2009_Np', benchmark_file))
 ####################################################################################
 
 def var_key_retrieve(datapath, year, month, day):
     # get the path to each datasets
-    print ("Start retrieving datasets {} (y) {} (m)".format(year,month))
+    print ("Start retrieving datasets {0} (y) {1} (m) {2}".format(year, month, day))
     if year < 1992:
         datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_100.inst3_3d_asm_Np.{0}{1}{2}.nc4.nc'.format(year, namelist_month[month-1], day))
     elif year < 2001:
-        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_200.inst3_3d_asm_Np.{0}1231.nc4.nc'.format(year, namelist_month[month-1], day))
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_200.inst3_3d_asm_Np.{0}{1}{2}.nc4.nc'.format(year, namelist_month[month-1], day))
     elif year < 2011:
-        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_300.inst3_3d_asm_Np.{0}1231.nc4.nc'.format(year, namelist_month[month-1], day))
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_300.inst3_3d_asm_Np.{0}{1}{2}.nc4.nc'.format(year, namelist_month[month-1], day))
     else:
-        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_400.inst3_3d_asm_Np.{0}1231.nc4.nc'.format(year, namelist_month[month-1], day))
-    # get the variable key
-    var_last = Dataset(datapath_last)
-    # The shape of each variable is (241,480)
-    datapath = os.path.join(datapath, 'merra{}_Np'.format(year),
-                            'pressure_daily_075_diagnostic_{}_{}_all.nc'.format(year,month))
+        datapath_last = os.path.join(datapath, 'merra{0}_Np'.format(year), 'MERRA2_400.inst3_3d_asm_Np.{0}{1}{2}.nc4.nc'.format(year, namelist_month[month-1], day))
     # get the variable keys
     var_key = Dataset(datapath)
 
@@ -134,6 +145,11 @@ def var_key_retrieve(datapath, year, month, day):
 
 def initialization(benchmark):
     print ("Prepare for the main work!")
+    # date and time arrangement
+    # namelist of month and days for file manipulation
+    namelist_month = ['01','02','03','04','05','06','07','08','09','10','11','12']
+    long_month_list = np.array([1,3,5,7,8,10,12])
+    leap_year_list = np.array([1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020])
     # create the month index
     period = np.arange(start_year,end_year+1,1)
     index_month = np.arange(1,13,1)
@@ -160,50 +176,39 @@ def initialization(benchmark):
 
 def pick_var(var_key):
     # validate time and location info
-    time = var_key.variables['time'][:]
-    level = var_key.variables['level'][:]
-    latitude = var_key.variables['latitude'][:]
-    longitude = var_key.variables['longitude'][:]
-    date = num2date(time,var_key.variables['time'].units)
-    days = len(time)//4
-    print ('*******************************************************************')
-    print ('The datasets contain information from %s to %s' % (date[0],date[-1]))
-    print ('There are %d days in this month' % (len(time)//4))
-    print ('The coordinates include %d vertical levels' % (len(level)))
-    print ('The grid employs %d points in latitude, and %d points in longitude' % (len(latitude),len(longitude)))
-    print ('*******************************************************************')
     # extract variables
     print ("Start extracting velocity for the calculation of mean over time and space.")
     # extract data at certain levels
-    v = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    T = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    q = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    z = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    v[:,:,:] = var_key.variables['v'][:,lev_slice,:,:]
-    T[:,:,:] = var_key.variables['t'][:,lev_slice,:,:]
-    q[:,:,:] = var_key.variables['q'][:,lev_slice,:,:]
-    z[:,:,:] = var_key.variables['z'][:,lev_slice,:,:]
+    v = var_key.variables['V'][:,lev_slice,:,:]
+    T= var_key.variables['T'][:,lev_slice,:,:]
+    q = var_key.variables['QV'][:,lev_slice,:,:]
+    ps = var_key.variables['PS'][:] # surface pressure Pa
+    phis = var_key.variables['PHIS'][:] # surface geopotential height m2/s2
+    level = var_key.variables['lev'][lev_slice]
+    ######################################################################
+    ######      compute geopotential with hypsometric function      ######
+    ######          z2 - z1 = Rd * Tv / g0 * ln(p1 - p2)            ######
+    ######   more details can be found in ECMWF IFS documentation   ######
+    ######   ECMWF IFS 9220 part III numerics equation 2.20 - 2.23  ######
+    ######################################################################
+    # create space for geopotential height
+    z = np.zeros(T.shape, dtype=float)
+    # compute the moist temperature (virtual temperature)
+    Tv = T * (1 + (constant['R_vap'] / constant['R_dry'] - 1) * q)
+    z = phis / constant['g'] + constant['R_dry'] * Tv / constant['g'] * np.log(ps / level)
+    # below surface ->0
+    z[level>ps] = 0
+    z = z * constant['g']
     # daily mean
-    # first we reshape the array
-    v_expand = v.reshape(len(time)//4,4,len(latitude),len(longitude))
-    T_expand = T.reshape(len(time)//4,4,len(latitude),len(longitude))
-    q_expand = q.reshape(len(time)//4,4,len(latitude),len(longitude))
-    z_expand = z.reshape(len(time)//4,4,len(latitude),len(longitude))
-    # Then we take daily mean
-    v_daily = np.mean(v_expand,1)
-    T_daily = np.mean(T_expand,1)
-    q_daily = np.mean(q_expand,1)
-    z_daily = np.mean(z_expand,1)
-    if days == 29:
-        v_out = v_daily[:-1,:,:]
-        T_out = T_daily[:-1,:,:]
-        q_out = q_daily[:-1,:,:]
-        z_out = z_daily[:-1,:,:]
-    else:
-        v_out = v_daily
-        T_out = T_daily
-        q_out = q_daily
-        z_out = z_daily
+    v_out = np.mean(v, 0)
+    T_out = np.mean(T, 0)
+    q_out = np.mean(q, 0)
+    z_out = np.mean(z, 0)
+    # correct the filling values
+    v_out[v_out>1000] = 0
+    T_out[T_out>1000] = 0
+    q_out[v_out>1000] = 0
+    z_out[v_out>1000] = 0   
     print ('Extracting variables successfully!')
 
     return v_out, T_out, q_out, z_out
@@ -404,7 +409,8 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     print ('*******************************************************************')
     # wrap the datasets into netcdf file
     # 'NETCDF3_CLASSIC', 'NETCDF3_64BIT', 'NETCDF4_CLASSIC', and 'NETCDF4'
-    data_wrap = Dataset(os.path.join(output_path,'model_daily_075_E_eddies_point.nc'),'w',format = 'NETCDF4')
+    data_wrap = Dataset(os.path.join(output_path,'model_merra_daily_075_E_eddies_{0}hPa_point.nc'.format(name_list[lev_slice])),
+                        'w',format = 'NETCDF4')
     # create dimensions for netcdf data
     year_wrap_dim = data_wrap.createDimension('year',Dim_period)
     month_wrap_dim = data_wrap.createDimension('month',Dim_month)
@@ -571,18 +577,44 @@ if __name__=="__main__":
     # calculate the time for the code execution
     start_time = tttt.time()
     # initialization
-    period, index_month, Dim_latitude, Dim_longitude, Dim_month, Dim_period,\
-    month_day_length, month_day_index, v_temporal_sum, T_temporal_sum, q_temporal_sum,\
-    z_temporal_sum  = initialization(benchmark)
+    period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,
+    Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, v_temporal_sum,
+    T_temporal_sum, q_temporal_sum, z_temporal_sum  = initialization(benchmark)
     print ('*******************************************************************')
     print ('************  calculate the temporal and spatial mean  ************')
     print ('*******************************************************************')
     for i in period:
         for j in index_month:
-            # get the key of each variable
-            variable_key = var_key_retrieve(datapath,i,j)
-            # take the daily mean of target fields
-            var_v, var_T, var_q, var_z = pick_var(variable_key)
+            # determine how many days are there in a month
+            if j in long_month_list:
+                last_day = 31
+            elif j == 2:
+                if i in leap_year_list:
+                    last_day = 29
+                else:
+                    last_day = 28
+            else:
+                last_day = 30
+            # matrix to collect fields for each month
+            var_v = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            var_T = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            var_q = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            var_z = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            # daily loop
+            for k in np.arange(last_day):
+                # get the key of each variable
+                variable_key = var_key_retrieve(datapath,i,j)
+                daily_v, daily_T, daily_q, daily_z = pick_var(variable_key)
+                var_v[k,:,:] = daily_v
+                var_T[k,:,:] = daily_T
+                var_q[k,:,:] = daily_q
+                var_z[k,:,:] = daily_z
+            # in case of Feburary with 29 days
+            if j == 2 and i in leap_year_list:
+                var_v = var_v[:-1,:,:]
+                var_T = var_T[:-1,:,:]
+                var_q = var_q[:-1,:,:]
+                var_z = var_z[:-1,:,:]
             # add daily field to the summation operator
             v_temporal_sum[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:] = \
             v_temporal_sum[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:] + var_v
@@ -614,10 +646,36 @@ if __name__=="__main__":
     # start the loop for the computation of eddies
     for i in period:
         for j in index_month:
-            # get the key of each variable
-            variable_key = var_key_retrieve(datapath,i,j)
-            # take the daily mean of target fields at certain levels
-            var_v, var_T, var_q, var_z = pick_var(variable_key)
+            # determine how many days are there in a month
+            if j in long_month_list:
+                last_day = 31
+            elif j == 2:
+                if i in leap_year_list:
+                    last_day = 29
+                else:
+                    last_day = 28
+            else:
+                last_day = 30
+            # matrix to collect fields for each month
+            var_v = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            var_T = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            var_q = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            var_z = np.zeros((last_day,Dim_latitude,Dim_longitude),dtype=float)
+            # daily loop
+            for k in np.arange(last_day):
+                # get the key of each variable
+                variable_key = var_key_retrieve(datapath,i,j)
+                daily_v, daily_T, daily_q, daily_z = pick_var(variable_key)
+                var_v[k,:,:] = daily_v
+                var_T[k,:,:] = daily_T
+                var_q[k,:,:] = daily_q
+                var_z[k,:,:] = daily_z
+            # in case of Feburary with 29 days
+            if j == 2 and i in leap_year_list:
+                var_v = var_v[:-1,:,:]
+                var_T = var_T[:-1,:,:]
+                var_q = var_q[:-1,:,:]
+                var_z = var_z[:-1,:,:]
             # take the temporal mean for the certain month
             var_v_temporal_mean_select = v_temporal_mean[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:]
             var_T_temporal_mean_select = T_temporal_mean[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:]
