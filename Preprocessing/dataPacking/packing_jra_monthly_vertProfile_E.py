@@ -113,7 +113,7 @@ def var_retrieve_year(datapath, year, level, level_q):
     key_vgrd = pygrib.open(os.path.join(datapath,
                            'anl_p125.034_vgrd.{0}01_{1}12'.format(year,year)))
     key_hgt = pygrib.open(os.path.join(datapath,
-                          'anl_p125.007_hgt.{0}01_{1}12'.format(year,year)))
+                          'anl_p125.007_hgt.{0}01_{1}12'.format(year,year))) # with an unit of gpm
     # extract data
     # reset counters
     counter_time = 0
@@ -160,7 +160,7 @@ def var_retrieve_year(datapath, year, level, level_q):
     key_hgt.close()
 
     print ("Retrieving datasets successfully and return the variables!")
-    return T, q, v, z
+    return T, q, v, z * constant['g'] # the unit of z originally is gpm
 
 def var_retrieve_month(datapath, year, month, level, level_q):
     # get the path to each datasets
@@ -219,7 +219,7 @@ def var_retrieve_month(datapath, year, month, level, level_q):
     key_hgt.close()
     
     print ("Retrieving datasets successfully and return the variables!")
-    return T, q, v, z
+    return T, q, v, z * constant['g'] # the unit of z originally is gpm
 
 
 def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,

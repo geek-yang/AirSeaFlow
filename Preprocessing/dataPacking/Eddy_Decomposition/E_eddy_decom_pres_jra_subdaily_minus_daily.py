@@ -71,6 +71,7 @@ import numpy as np
 import time as tttt
 from netCDF4 import Dataset, num2date
 import os
+import pygrib
 
 ##########################################################################
 ###########################   Units vacabulory   #########################
@@ -129,7 +130,7 @@ name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
 # specify data path
 # ERAI 3D fields on pressure level
 #datapath = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression/pressure/daily'
-datapath = '/project/0/blueactn/reanalysis/JRA55/subdaily/pressure'
+datapath = '/projects/0/blueactn/reanalysis/JRA55/subdaily/pressure'
 # specify output path for figures
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
 output_path = '/home/lwc16308/reanalysis/JRA55/output/eddy'
@@ -138,7 +139,7 @@ benchmark_file = 'anl_p125.007_hgt.1980030100_1980033118'
 benchmark = os.path.join(datapath, 'jra1980_p', benchmark_file)
 ####################################################################################
 
-def var_retrieve(datapath, year, month, namelist_month, last_day):
+def var_retrieve(datapath, year, month, last_day):
     # get the path to each datasets
     print ("Start retrieving datasets {0} (y) {1} (m)".format(year,month))
     # get the keys of data
@@ -152,7 +153,7 @@ def var_retrieve(datapath, year, month, namelist_month, last_day):
                           'anl_p125.007_hgt.{0}{1}0100_{2}{3}{4}18'.format(year, namelist_month[month-1], year, namelist_month[month-1], last_day)))
     print ("Retrieving datasets successfully and return the variable key!")
     # extract variables
-    print ("Start extracting velocity for the calculation of mean over time and space.")
+    print ("Start extracting variables for the calculation of mean over time and space.")
     # extract data at certain levels
     v = np.zeros((last_day*4, Dim_latitude, Dim_longitude),dtype=float)
     T = np.zeros((last_day*4, Dim_latitude, Dim_longitude),dtype=float)
@@ -172,6 +173,7 @@ def var_retrieve(datapath, year, month, namelist_month, last_day):
         v[counter_time,:,:] = key_v.values
         z[counter_time,:,:] = key_z.values
         # push the counter
+        counter_time = counter_time + 1
         counter_message = counter_message + native_level
     # for q
     # reset counters
@@ -181,8 +183,9 @@ def var_retrieve(datapath, year, month, namelist_month, last_day):
         # take the key
         key_q = key_spfh.message(counter_message)
         # take the values
-        q[counter_time,counter_lev,:,:] = key_q.values
+        q[counter_time:,:] = key_q.values
         # push the counter
+        counter_time = counter_time + 1
         counter_message = counter_message + native_level_q
     # close all the grib files
     key_tmp.close()
@@ -191,15 +194,15 @@ def var_retrieve(datapath, year, month, namelist_month, last_day):
     key_hgt.close()
     # daily mean
     # first we reshape the array
-    v_expand = v.reshape(len(time)//4,4,len(latitude),len(longitude))
-    T_expand = T.reshape(len(time)//4,4,len(latitude),len(longitude))
-    q_expand = q.reshape(len(time)//4,4,len(latitude),len(longitude))
-    z_expand = z.reshape(len(time)//4,4,len(latitude),len(longitude))
+    v_expand = v.reshape(last_day,4,Dim_latitude,Dim_longitude)
+    T_expand = T.reshape(last_day,4,Dim_latitude,Dim_longitude)
+    q_expand = q.reshape(last_day,4,Dim_latitude,Dim_longitude)
+    z_expand = z.reshape(last_day,4,Dim_latitude,Dim_longitude)
     # Then we take daily mean
     v_daily = np.mean(v_expand,1)
     T_daily = np.mean(T_expand,1)
     q_daily = np.mean(q_expand,1)
-    z_daily = np.mean(z_expand,1)
+    z_daily = np.mean(z_expand,1) * constant['g'] # the unit of z originally is gpm
     if last_day == 29:
         v_out = v_daily[:-1,:,:]
         T_out = T_daily[:-1,:,:]
@@ -230,7 +233,7 @@ def initialization(benchmark):
     lat = lats[:,0] # descending
     lon = lons[0,:]
     # create dimensions for saving data
-    Dim_year = len(period)
+    Dim_period = len(period)
     Dim_month = len(index_month)
     Dim_latitude = len(lat)
     Dim_longitude = len(lon)
@@ -246,7 +249,7 @@ def initialization(benchmark):
     q_temporal_sum = np.zeros((365,Dim_latitude,Dim_longitude),dtype=float)
     z_temporal_sum = np.zeros((365,Dim_latitude,Dim_longitude),dtype=float)
     return period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,\
-           Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index,\
+           Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, lat, lon,\
            v_temporal_sum, T_temporal_sum, q_temporal_sum, z_temporal_sum
 
 def initialization_eddy(v_temporal_mean, T_temporal_mean,
@@ -424,7 +427,7 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
                              var_Lvq_standing, var_Lvq_stationary_mean, var_Lvq_steady_mean,
                              var_gz_overall,var_gz_transient,var_gz_transient_mean,
                              var_gz_standing, var_gz_stationary_mean, var_gz_steady_mean,
-                             output_path):
+                             lat, lon, output_path):
     # take the zonal mean
     var_cpT_overall_zonal = np.mean(var_cpT_overall,3)
     var_cpT_transient_zonal = np.mean(var_cpT_transient,3)
@@ -569,8 +572,8 @@ def create_netcdf_point_eddy(var_cpT_overall,var_cpT_transient,var_cpT_transient
     # writing data
     year_wrap_var[:] = period
     month_wrap_var[:] = index_month
-    lat_wrap_var[:] = benchmark.variables['latitude'][:]
-    lon_wrap_var[:] = benchmark.variables['longitude'][:]
+    lat_wrap_var[:] = lat
+    lon_wrap_var[:] = lon
 
     var_cpT_overall_wrap_var[:] = var_cpT_overall
     var_cpT_transient_wrap_var[:] = var_cpT_transient
@@ -613,9 +616,9 @@ if __name__=="__main__":
     # calculate the time for the code execution
     start_time = tttt.time()
     # initialization
-    period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,
-    Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, v_temporal_sum,
-    T_temporal_sum, q_temporal_sum, z_temporal_sum  = initialization(benchmark)
+    period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,\
+    Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, lat, lon, \
+    v_temporal_sum, T_temporal_sum, q_temporal_sum, z_temporal_sum  = initialization(benchmark)
     print ('*******************************************************************')
     print ('************  calculate the temporal and spatial mean  ************')
     print ('*******************************************************************')
@@ -711,6 +714,6 @@ if __name__=="__main__":
                              var_Lvq_standing_pool,var_Lvq_stationary_mean_pool,var_Lvq_steady_mean,
                              var_gz_overall_pool,var_gz_transient_pool,var_gz_transient_mean_pool,
                              var_gz_standing_pool,var_gz_stationary_mean_pool,var_gz_steady_mean,
-                             output_path)
+                             lat, lon, output_path)
     print ('The full pipeline of the decomposition of meridional energy transport in the atmosphere is accomplished!')
     print ("--- %s minutes ---" % ((tttt.time() - start_time)/60))

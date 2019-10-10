@@ -114,6 +114,7 @@ end_year = 2017
 # corresponding target levels (0)7, (1) 6, (2) 5, (3) 4, (4)3, (5) 2, (6) 1, (7) 0
 lev_slice = 0
 name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
+name_list = name_list[::-1]
 # specify data path
 # ERAI 3D fields on pressure level
 #datapath = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression/pressure/daily'
@@ -193,11 +194,19 @@ def pick_var(var_key):
     ######          z2 - z1 = Rd * Tv / g0 * ln(p1 - p2)            ######
     ######   more details can be found in ECMWF IFS documentation   ######
     ######   ECMWF IFS 9220 part III numerics equation 2.20 - 2.23  ######
+    ######          Virtual temperature is approximated by          ######
+    ######                      Tv = (1+0.61rv)T                    ######
+    ######    http://glossary.ametsoc.org/wiki/Virtual_temperature  ######
     ######################################################################
     # create space for geopotential height
     z = np.zeros(T.shape, dtype=float)
     # compute the moist temperature (virtual temperature)
+    # we use simplified virtual temperature Tv = (1+0.61rv)T
+    # see http://glossary.ametsoc.org/wiki/Virtual_temperature
+    # q is used to approximate the mixing ratio rv
+    # see http://glossary.ametsoc.org/wiki/Mixing_ratio
     Tv = T * (1 + (constant['R_vap'] / constant['R_dry'] - 1) * q)
+    # hypometric equation
     z = phis / constant['g'] + constant['R_dry'] * Tv / constant['g'] * np.log(ps / level)
     # below surface ->0
     z[level>ps] = 0
@@ -276,7 +285,7 @@ def compute_eddy(var_v_temporal_mean_select, var_T_temporal_mean_select,
     in notes.
     '''
     # shape of v[days,lat,lon]
-    seq, _, _ = v.shape
+    seq, _, _ = var_v.shape
     # mask[lat, lon]
     mask_3D = np.repeat(mask[np.newaxis,:,:],seq,0)
     # calculate transient eddies

@@ -297,7 +297,7 @@ def create_netcdf_point (pool_t_vert, pool_q_vert, pool_u_vert, pool_v_vert,
 def calc(t, q, u, v, gz, level, lat, lon):
     print ('Extract monthly mean fields.')
     # calculate the height
-    z = gz / constant['g']
+    z = gz / constant['g'] #????
     # calculate the vertical shear
     # create arrays to store the values
     dudz = np.zeros(u.shape,dtype=float)
