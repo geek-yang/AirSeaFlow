@@ -132,7 +132,7 @@ name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
 datapath = '/project/0/blueactn/reanalysis/JRA55/subdaily/pressure'
 # specify output path for figures
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
-output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
+output_path = '/home/lwc16308/reanalysis/JRA55/output/eddy'
 # benchmark datasets for basic dimensions
 benchmark_file = 'anl_p125.007_hgt.1980030100_1980033118'
 benchmark = os.path.join(datapath, 'jra1980_p', benchmark_file)
