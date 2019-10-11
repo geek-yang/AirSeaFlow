@@ -201,7 +201,7 @@ def var_retrieve_month(datapath, year, month, level, level_q):
         T[counter_lev,:,:] = key_T.values
         u[counter_lev,:,:] = key_u.values
         v[counter_lev,:,:] = key_v.values
-        z[counter_lev,:,:] = key_z.values
+        z[counter_lev,:,:] = key_z.values # the unit of z originally is gpm
         # push the counter
         counter_lev = counter_lev + 1
         counter_message = counter_message + 1
@@ -294,10 +294,8 @@ def create_netcdf_point (pool_t_vert, pool_q_vert, pool_u_vert, pool_v_vert,
     data_wrap.close()
     print ("The generation of netcdf files for fields on surface is complete!!")
     
-def calc(t, q, u, v, gz, level, lat, lon):
+def calc(t, q, u, v, z, level, lat, lon):
     print ('Extract monthly mean fields.')
-    # calculate the height
-    z = gz / constant['g'] #????
     # calculate the vertical shear
     # create arrays to store the values
     dudz = np.zeros(u.shape,dtype=float)
@@ -317,7 +315,7 @@ def calc(t, q, u, v, gz, level, lat, lon):
     q_vert = np.mean(q,3)
     u_vert = np.mean(u,3)
     v_vert = np.mean(v,3)
-    gz_vert = np.mean(gz,3)
+    gz_vert = np.mean(z,3) * constant['g']
     dudz_vert = np.mean(dudz,3)
     psi_vert = np.mean(psi,3) * len(lon) # by definition
     
@@ -371,7 +369,7 @@ if __name__=="__main__":
     pool_q = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     pool_u = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     pool_v = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
-    pool_z = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
+    pool_gz = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     pool_dudz = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     pool_psi = np.zeros((Dim_year, Dim_month, Dim_level, Dim_latitude),dtype = float)
     # loop for calculation
@@ -381,7 +379,7 @@ if __name__=="__main__":
         if i < 2014:
             T, q[:,lev_diff:,:,:], u, v,\
             z = var_retrieve_year(datapath_3D, i, level, level_q)
-            t_vert, q_vert, u_vert, v_vert, z_vert, dudz,\
+            t_vert, q_vert, u_vert, v_vert, gz_vert, dudz,\
             psi = calc(T, q, u, v, z, level, lat, lon)
         else:
             for j in index_month:
@@ -393,7 +391,7 @@ if __name__=="__main__":
                 fields_T[j-1,:,:,:], fields_q[j-1,lev_diff:,:,:], fields_u[j-1,:,:,:],\
                 fields_v[j-1,:,:,:], fields_z[j-1,:,:,:] = var_retrieve_month(datapath_3D,
                                                                               i, j, level, level_q)
-            t_vert, q_vert, u_vert, v_vert, z_vert, dudz,\
+            t_vert, q_vert, u_vert, v_vert, gz_vert, dudz,\
             psi = calc(fields_T, fields_q, fields_u, fields_v,
                        fields_z, level, lat, lon)                
         # get the key of each variable
@@ -401,14 +399,14 @@ if __name__=="__main__":
         pool_q[i-1979,:,:,:] = q_vert
         pool_u[i-1979,:,:,:] = u_vert
         pool_v[i-1979,:,:,:] = v_vert
-        pool_z[i-1979,:,:,:] = z_vert
+        pool_gz[i-1979,:,:,:] = gz_vert
         pool_dudz[i-1979,:,:,:] = dudz
         pool_psi[i-1979,:,:,:] = psi
     ####################################################################
     ######                 Data Wrapping (NetCDF)                #######
     ####################################################################
     create_netcdf_point(pool_t, pool_q, pool_u, pool_v,
-                        pool_z, pool_dudz, pool_psi, output_path,
+                        pool_gz, pool_dudz, pool_psi, output_path,
                         level, lat)
     print ('Packing 3D fields of JRA55 on pressure level is complete!!!')
     print ('The output is in sleep, safe and sound!!!')

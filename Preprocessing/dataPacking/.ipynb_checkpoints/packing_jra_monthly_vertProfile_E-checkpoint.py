@@ -219,7 +219,7 @@ def var_retrieve_month(datapath, year, month, level, level_q):
     key_hgt.close()
     
     print ("Retrieving datasets successfully and return the variables!")
-    return T, q, v, z * constant['g'] # the unit of z originally is gpm
+    return T, q, v, z*constant['g'] # the unit of z originally is gpm
 
 
 def create_netcdf_point (pool_cpT_vert, pool_gz_vert, pool_Lvq_vert,
