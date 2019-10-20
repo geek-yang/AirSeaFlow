@@ -126,9 +126,9 @@ def retriver(var_key, lev):
     # compute the moist temperature (virtual temperature)
     Tv = T * (1 + (constant['R_vap'] / constant['R_dry'] - 1) * q)
     for i in np.arange(len(lev)):
-    	z_interim = phis / constant['g'] + constant['R_dry'] * Tv[i,:,:] / constant['g'] * np.log(ps / lev[i])
+    	z_interim = phis / constant['g'] + constant['R_dry'] * Tv[i,:,:] / constant['g'] * np.log(ps / lev[i]*100)
     	# below surface ->0
-    	z_interim[lev[i]>ps] = 0
+    	z_interim[lev[i]*100>ps] = 0
     	z[i,:,:] = z_interim
     ######################################################################
     ######       compute wind shear and stokes stream function      ######
@@ -139,7 +139,7 @@ def retriver(var_key, lev):
         dudz_interim = (u[i,:,:] - u[i+2,:,:]) / (z[i,:,:] - z[i+2,:,:])
     	# below surface ->0
         # correction in need
-    	dudz_interim[lev[i]>ps] = 0
+    	dudz_interim[lev[i]*100>ps] = 0
         dudz_interim[dudz_interim>1.0] = 0
         dudz_interim[dudz_interim<-1.0] = 0
         dudz_interim[u[i,:,:]>1000] = 0
@@ -154,7 +154,7 @@ def retriver(var_key, lev):
             mass_flux_interim = dx[j] * (v[i+1,j,:] + v[i,j,:]) / 2 * (lev[i+1] - lev[i]) * 100 / constant['g']
             # below surface ->0
             # correction in need
-            mass_flux_interim[lev[i]>ps[j,:]] = 0
+            mass_flux_interim[lev[i]*100>ps[j,:]] = 0
             mass_flux_interim[v[i+1,j,:]>1000] = 0
             mass_flux[i+1,j,:] = mass_flux_interim
     for i in np.arange(len(lev)-1):
@@ -278,7 +278,7 @@ if __name__=="__main__":
     	for j in index_month:
         	# get the key of each variable
             var_key = var_key_retrieve(datapath_3D,i,j)
-            t, q, u, v, z, dudz, psi = retriver(var_key, level*100)             
+            t, q, u, v, z, dudz, psi = retriver(var_key, level)             
             # get the key of each variable
             pool_t[i-1980,j-1,:,:] = t
             pool_q[i-1980,j-1,:,:] = q

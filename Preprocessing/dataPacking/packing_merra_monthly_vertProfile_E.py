@@ -176,16 +176,21 @@ def retriver(var_key, lev):
     # compute the moist temperature (virtual temperature)
     Tv = T * (1 + (constant['R_vap'] / constant['R_dry'] - 1) * q)
     for i in np.arange(len(lev)):
-    	z_interim = phis / constant['g'] + constant['R_dry'] * Tv[i,:,:] / constant['g'] * np.log(ps / lev[i])
+    	z_interim = phis / constant['g'] + constant['R_dry'] * Tv[i,:,:] / constant['g'] * np.log(ps / lev[i]*100)
     	# below surface ->0
-    	z_interim[lev[i]>ps] = 0
+    	z_interim[lev[i]*100>ps] = 0
+        z_interim[v[i,:,:]>1000] = 0
     	z[i,:,:] = z_interim
     # calculate geopotential
     Z = z * constant['g']
+    # correct the filling values
+    v[v>1000] = 0
+    T[T>1000] = 0
+    q[q>1] = 0
 
-    return T, q, v, Z
+    return T, q, v, Z, ps
 
-def amet(t, q, v, z, lev, lat, lon):
+def amet(t, q, v, z, ps, lev, lat, lon):
     # allocation of dp array
     dp_level = np.zeros(lev.shape, dtype=float) # from surface to TOA
     for i in np.arange(len(dp_level)-1):
@@ -202,9 +207,17 @@ def amet(t, q, v, z, lev, lat, lon):
     for i in np.arange(len(dp_level)):
         # weight by longitudinal length
         for j in np.arange(len(lat)):
-            cpT[i,j,:] =  constant['cp'] * t[i,j,:] * v[i,j,:] * dp_level[i] / constant['g'] * dx[j]
-            gz[i,j,:] = z[i,j,:] * v[i,j,:] * dp_level[i] / constant['g'] * dx[j]
-            Lvq[i,j,:] = constant['Lv'] * q[i,j,:] * v[i,j,:] * dp_level[i] / constant['g'] * dx[j]
+            cpT_interim =  constant['cp'] * t[i,j,:] * v[i,j,:] * dp_level[i]*100 / constant['g'] * dx[j]
+            gz_interim = z[i,j,:] * v[i,j,:] * dp_level[i]*100 / constant['g'] * dx[j]
+            Lvq_interim = constant['Lv'] * q[i,j,:] * v[i,j,:] * dp_level[i]*100 / constant['g'] * dx[j]
+            # correction based on terrain
+            cpT_interim[lev[i]*100>ps[j,:]] = 0
+            gz_interim[lev[i]*100>ps[j,:]] = 0
+            Lvq_interim[lev[i]*100>ps[j,:]] = 0
+            # get the values
+            cpT[i,j,:] = cpT_interim
+            gz[i,j,:] = gz_interim
+            Lvq[i,j,:] = Lvq_interim
     # take the vertical profile - summation
     cpT_vert = np.sum(cpT,2)
     gz_vert = np.sum(gz,2)
@@ -250,8 +263,8 @@ if __name__=="__main__":
     	for j in index_month:
         	# get the key of each variable
         	var_key = var_key_retrieve(datapath_3D,i,j)
-        	t, q, v, z = retriver(var_key, level*100)
-        	cpT, gz, Lvq, E = amet(t, q, v, z, level*100, lat, lon)
+        	t, q, v, z, ps = retriver(var_key, level)
+        	cpT, gz, Lvq, E = amet(t, q, v, z, ps, level, lat, lon)
         	pool_cpT[i-1980,j-1,:,:] = cpT / 1E+12 # unit is tera watt
         	pool_gz[i-1980,j-1,:,:] = gz / 1E+12
         	pool_Lvq[i-1980,j-1,:,:] = Lvq / 1E+12
