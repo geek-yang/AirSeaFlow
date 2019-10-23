@@ -265,7 +265,8 @@ def create_netcdf_point_eddy(var_v2_overall,var_v2_transient,var_v2_transient_me
     print ('*******************************************************************')
     # wrap the datasets into netcdf file
     # 'NETCDF3_CLASSIC', 'NETCDF3_64BIT', 'NETCDF4_CLASSIC', and 'NETCDF4'
-    data_wrap = Dataset(os.path.join(output_path,'model_daily_075_v2_eddies_point.nc'),'w',format = 'NETCDF4')
+    data_wrap = Dataset(os.path.join(output_path,'model_era_daily_075_v2_eddies_{0}hPa_point.nc'.format(name_list[lev_slice])),
+                        'w',format = 'NETCDF4')
     # create dimensions for netcdf data
     year_wrap_dim = data_wrap.createDimension('year',Dim_period)
     month_wrap_dim = data_wrap.createDimension('month',Dim_month)

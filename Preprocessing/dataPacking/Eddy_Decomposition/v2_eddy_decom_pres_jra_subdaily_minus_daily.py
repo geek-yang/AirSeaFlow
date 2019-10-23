@@ -2,13 +2,13 @@
 #!/usr/bin/env python
 """
 Copyright Netherlands eScience Center
-Function        : Quantify stationary and transient eddy from atmospheric kinetic energy (ERA-Interim)(HPC-cloud customised)
+Function        : Quantify stationary and transient eddy from atmospheric kinetic energy (JRA55)(Cartesius customised)
 Author          : Yang Liu
 Date            : 2018.11.30
-Last Update     : 2018.11.30
+Last Update     : 2019.10.30
 Description     : The code aims to calculate the time and space dependent components
                   of atmospheric meridional energy transport based on atmospheric
-                  reanalysis dataset ERA-Interim from ECMWF. The complete procedure
+                  reanalysis dataset JRA55 from JMA. The complete procedure
                   includes the ecomposition of standing & transient eddies.
                   Much attention should be paid that we have to use daily
                   mean since the decomposition takes place at subdaily level could introduce
@@ -42,8 +42,29 @@ variables       : Absolute Temperature              T
                   Zonal Divergent Wind              u
                   Meridional Divergent Wind         v
 		          Surface geopotential  	        z
-Caveat!!	    : The dataset is from 20 deg north to 90 deg north (Northern Hemisphere).
-		          Attention should be paid when calculating the meridional grid length (dy)!
+Caveat!!	    : This module is designed to work with a batch of files. Hence, there is
+                  pre-requists for the location and arrangement of data. The folder should
+                  have the following structure:
+                  /JRA55
+                      /anl_p125.007_hgt.197901_197912
+                      /anl_p125.007_hgt.198001_198012
+                      ...
+                      /anl_p125.011_tmp.198001_198012
+                      ...
+                      /anl_p125.033_ugrd.198001_198012
+                      ...
+                      /anl_p125.034_vgrd.198001_198012
+                      ...
+                      /anl_p125.051_spfh.198001_198012
+                      ...
+                      (since 2014)
+                      /anl_p125_hgt.201401
+                      /anl_p125_hgt.201402
+                      /anl_p125_hgt.201403
+                      ...
+                  Please use the default names after downloading from NCAR/UCAR Research
+                  Data Archive. The files are in GRIB format. Originally, JRA55 has descending lat.
+                  The pressure levels are from TOA to surface. The temporal resolution is 6 hourly.
 """
 
 import sys
@@ -74,49 +95,104 @@ constant = {'g' : 9.80616,      # gravititional acceleration [m / s2]
             'R_dry' : 286.9,    # gas constant of dry air [J/(kg*K)]
             'R_vap' : 461.5,    # gas constant for water vapour [J/(kg*K)]
             }
+##########################################################################
+###########################   level information  #########################
+level = np.array(([1, 2, 3, 5, 7,
+                   10, 20, 30, 50, 70,
+                   100, 125, 150, 175, 200,
+                   225, 250, 300, 350, 400,
+                   450, 500, 550, 600, 650,
+                   700, 750, 775, 800, 825,
+                   850, 875, 900, 925, 950,
+                   975, 1000]),dtype=int)
+native_level = len(level)
+
+level_q = np.array(([100, 125, 150, 175, 200,
+                     225, 250, 300, 350, 400,
+                     450, 500, 550, 600, 650,
+                     700, 750, 775, 800, 825,
+                     850, 875, 900, 925, 950,
+                     975, 1000]),dtype=int)
+native_level_q = len(level_q)
 
 ################################   Input zone  ######################################
 # specify starting and ending time
 start_year = 1979
 end_year = 2017
 # choose the slice number for the vertical layer
-#  pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
+# pressure levels: (0)200, (1)300, (2)400, (3)500, (4)600, (5)750, (6)850, (7)950
 lev_slice = 0
+target_lev = [14, 17, 19, 21, 23, 26, 30, 34]
+name_list = ['200', '300', '400', '500', '600', '750', '850', '950']
 # specify data path
 # ERAI 3D fields on pressure level
 #datapath = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression/pressure/daily'
-datapath = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/T_v_z_q'
+datapath = '/projects/0/blueactn/reanalysis/JRA55/subdaily/pressure'
 # specify output path for figures
 #output_path = '/home/ESLT0068/WorkFlow/Core_Database_AMET_OMET_reanalysis/ERAI/regression'
-output_path = '/project/Reanalysis/ERA_Interim/Subdaily/Pressure/output'
+output_path = '/home/lwc16308/reanalysis/JRA55/output/eddy'
 # benchmark datasets for basic dimensions
-benchmark_file = 'pressure_daily_075_diagnostic_1998_3_all.nc'
-benchmark = Dataset(os.path.join(datapath, 'era1998', benchmark_file))
+benchmark_file = 'anl_p125.007_hgt.1980030100_1980033118'
+benchmark = os.path.join(datapath, 'jra1980_p', benchmark_file)
 ####################################################################################
 
-def var_key_retrieve(datapath, year, month):
+def var_key_retrieve(datapath, year, month, last_day):
     # get the path to each datasets
-    print ("Start retrieving datasets {} (y) {} (m)".format(year,month))
-    # The shape of each variable is (241,480)
-    datapath = os.path.join(datapath, 'era{}'.format(year),
-                            'pressure_daily_075_diagnostic_{}_{}_all.nc'.format(year,month))
-    # get the variable keys
-    var_key = Dataset(datapath)
-
+    print ("Start retrieving datasets {0} (y) {1} (m)".format(year,month))
+    # get the keys of data    
+    key_vgrd = pygrib.open(os.path.join(datapath, 'jra{0}_p'.format(year),
+                           'anl_p125.034_vgrd.{0}{1}0100_{2}{3}{4}18'.format(year, namelist_month[month-1], year, namelist_month[month-1], last_day)))
     print ("Retrieving datasets successfully and return the variable key!")
-    return var_key
+    # extract variables
+    print ("Start extracting variables for the calculation of mean over time and space.")
+    # extract data at certain levels
+    v = np.zeros((last_day*4, Dim_latitude, Dim_longitude),dtype=float)
+    # reset counters
+    counter_time = 0
+    counter_message = 1 + target_lev[lev_slice]
+    while (counter_message <= last_day*4*native_level):
+        # take the key
+        key_v = key_vgrd.message(counter_message)
+        # take the values
+        v[counter_time,:,:] = key_v.values
+        # push the counter
+        counter_time = counter_time + 1
+        counter_message = counter_message + native_level
+    key_vgrd.close()
+    # daily mean
+    # first we reshape the array
+    v_expand = v.reshape(last_day,4,Dim_latitude,Dim_longitude)
+    # Then we take daily mean
+    v_daily = np.mean(v_expand,1)
+    if last_day == 29:
+        v_out = v_daily[:-1,:,:]
+    else:
+        v_out = v_daily
+    print ('Extracting variables successfully!')
+    
+    return v_out
 
 def initialization(benchmark):
     print ("Prepare for the main work!")
-    # create the month index
+    # date and time arrangement
+    # namelist of month and days for file manipulation
+    namelist_month = ['01','02','03','04','05','06','07','08','09','10','11','12']
+    long_month_list = np.array([1,3,5,7,8,10,12])
+    leap_year_list = np.array([1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020])
+    # index of months
     period = np.arange(start_year,end_year+1,1)
     index_month = np.arange(1,13,1)
+    example_grbs = pygrib.open(benchmark)
+    example_key = example_grbs.message(1)
+    lats, lons = example_key.latlons()
+    lat = lats[:,0] # descending
+    lon = lons[0,:]
     # create dimensions for saving data
-    #Dim_level = len(benchmark.variables['level'][:])
-    Dim_latitude = len(benchmark.variables['latitude'][:])
-    Dim_longitude = len(benchmark.variables['longitude'][:])
-    Dim_month = len(index_month)
     Dim_period = len(period)
+    Dim_month = len(index_month)
+    Dim_latitude = len(lat)
+    Dim_longitude = len(lon)    
+    
     #latitude = benchmark.variables['latitude'][:]
     #longitude = benchmark.variables['longitude'][:]
     #Dim_time = len(benchmark.variables['time'][:])
@@ -125,40 +201,9 @@ def initialization(benchmark):
     month_day_index = [0,31,59,90,120,151,181,212,243,273,304,334]
     # create variables
     v_temporal_sum = np.zeros((365,Dim_latitude,Dim_longitude),dtype=float) #! we ignore the last day of February for the leap year
-    return period, index_month, Dim_latitude, Dim_longitude, Dim_month, Dim_period,\
-           month_day_length, month_day_index, v_temporal_sum
-
-def pick_var(var_key):
-    # validate time and location info
-    time = var_key.variables['time'][:]
-    level = var_key.variables['level'][:]
-    latitude = var_key.variables['latitude'][:]
-    longitude = var_key.variables['longitude'][:]
-    date = num2date(time,var_key.variables['time'].units)
-    days = len(time)//4
-    print ('*******************************************************************')
-    print ('The datasets contain information from %s to %s' % (date[0],date[-1]))
-    print ('There are %d days in this month' % (len(time)//4))
-    print ('The coordinates include %d vertical levels' % (len(level)))
-    print ('The grid employs %d points in latitude, and %d points in longitude' % (len(latitude),len(longitude)))
-    print ('*******************************************************************')
-    # extract variables
-    print ("Start extracting velocity for the calculation of mean over time and space.")
-    # extract data at certain levels
-    v = np.zeros((len(time),len(latitude),len(longitude)),dtype=float)
-    v[:,:,:] = var_key.variables['v'][:,lev_slice,:,:]
-    # daily mean
-    # first we reshape the array
-    v_expand = v.reshape(len(time)//4,4,len(latitude),len(longitude))
-    # Then we take daily mean
-    v_daily = np.mean(v_expand,1)
-    if days == 29:
-        v_out = v_daily[:-1,:,:]
-    else:
-        v_out = v_daily
-    print ('Extracting variables successfully!')
-
-    return v_out
+    return period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,\
+           Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, lat, lon,\
+           v_temporal_sum
 
 def initialization_eddy(v_temporal_mean):
     # Here we only use the temporal mean, for the spatial mean we will take it dynamically
@@ -265,7 +310,7 @@ def create_netcdf_point_eddy(var_v2_overall,var_v2_transient,var_v2_transient_me
     print ('*******************************************************************')
     # wrap the datasets into netcdf file
     # 'NETCDF3_CLASSIC', 'NETCDF3_64BIT', 'NETCDF4_CLASSIC', and 'NETCDF4'
-    data_wrap = Dataset(os.path.join(output_path,'model_era_daily_075_v2_eddies_{0}hPa_point.nc'.format(name_list[lev_slice])),
+    data_wrap = Dataset(os.path.join(output_path,'model_jra_daily_v2_eddies_{0}hPa_point.nc'.format(name_list[lev_slice])),
                         'w',format = 'NETCDF4')
     # create dimensions for netcdf data
     year_wrap_dim = data_wrap.createDimension('year',Dim_period)
@@ -346,20 +391,30 @@ if __name__=="__main__":
     # calculate the time for the code execution
     start_time = tttt.time()
     # initialization
-    period, index_month, Dim_latitude, Dim_longitude, Dim_month, Dim_period,\
-    month_day_length, month_day_index, v_temporal_sum  = initialization(benchmark)
+    period, index_month, namelist_month, long_month_list, leap_year_list, Dim_latitude,\
+    Dim_longitude, Dim_month, Dim_period, month_day_length, month_day_index, lat, lon, \
+    v_temporal_sum  = initialization(benchmark)
     print ('*******************************************************************')
     print ('************  calculate the temporal and spatial mean  ************')
     print ('*******************************************************************')
     for i in period:
         for j in index_month:
-            # get the key of each variable
-            variable_key = var_key_retrieve(datapath,i,j)
-            # take the daily mean of target fields
-            var_v = pick_var(variable_key)
-            # add daily field to the summation operator
+            # determine how many days are there in a month
+            if j in long_month_list:
+                last_day = 31
+            elif j == 2:
+                if i in leap_year_list:
+                    last_day = 29
+                else:
+                    last_day = 28
+            else:
+                last_day = 30
+            # get the key of each variable and extract fields
+            var_v = var_retrieve(datapath, i, j, last_day)
+            # add daily field to the summation operator    
+             # add daily field to the summation operator
             v_temporal_sum[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:] = \
-            v_temporal_sum[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:] + var_v
+            v_temporal_sum[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:] + var_v   
     # calculate the temporal mean
     v_temporal_mean = v_temporal_sum / Dim_period
     print ('*******************************************************************')
@@ -374,12 +429,20 @@ if __name__=="__main__":
     # start the loop for the computation of eddies
     for i in period:
         for j in index_month:
-            # get the key of each variable
-            variable_key = var_key_retrieve(datapath,i,j)
-            # take the daily mean of target fields at certain levels
-            var_v = pick_var(variable_key)
+            # determine how many days are there in a month
+            if j in long_month_list:
+                last_day = 31
+            elif j == 2:
+                if i in leap_year_list:
+                    last_day = 29
+                else:
+                    last_day = 28
+            else:
+                last_day = 30
+            # get the key of each variable and extract variables
+            var_v = var_retrieve(datapath, i, j, last_day)
             # take the temporal mean for the certain month
-            var_v_temporal_mean_select = v_temporal_mean[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:]            # calculate the eddies
+            var_v_temporal_mean_select = v_temporal_mean[month_day_index[j-1]:month_day_index[j-1]+month_day_length[j-1],:,:]   # calculate the eddies
             var_v2_transient, var_v2_transient_mean, var_v2_standing, var_v2_stationary_mean, var_v2_overall\
             = compute_eddy(var_v_temporal_mean_select, var_v)
             # save output to the data pool for netCDF
