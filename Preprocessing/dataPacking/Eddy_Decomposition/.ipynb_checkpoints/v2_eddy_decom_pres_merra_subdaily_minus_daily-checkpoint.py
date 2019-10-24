@@ -345,8 +345,8 @@ def create_netcdf_point_eddy(var_v2_overall,var_v2_transient,var_v2_transient_me
     # writing data
     year_wrap_var[:] = period
     month_wrap_var[:] = index_month
-    lat_wrap_var[:] = benchmark.variables['latitude'][:]
-    lon_wrap_var[:] = benchmark.variables['longitude'][:]
+    lat_wrap_var[:] = benchmark.variables['lat'][:]
+    lon_wrap_var[:] = benchmark.variables['lon'][:]
     
     var_v2_overall_wrap_var[:] = var_v2_overall
     var_v2_transient_wrap_var[:] = var_v2_transient
@@ -391,7 +391,7 @@ if __name__=="__main__":
             for k in np.arange(last_day):
                 # get the key of each variable
                 variable_key = var_key_retrieve(datapath, i, j, k)
-                daily_v, daily_T, daily_q, daily_z = pick_var(variable_key)
+                daily_v = pick_var(variable_key)
                 var_v[k,:,:] = daily_v
              # in case of Feburary with 29 days
             if j == 2 and i in leap_year_list:

@@ -72,6 +72,7 @@ import numpy as np
 import time as tttt
 from netCDF4 import Dataset, num2date
 import os
+import pygrib
 
 ##########################################################################
 ###########################   Units vacabulory   #########################
@@ -136,7 +137,7 @@ benchmark_file = 'anl_p125.007_hgt.1980030100_1980033118'
 benchmark = os.path.join(datapath, 'jra1980_p', benchmark_file)
 ####################################################################################
 
-def var_key_retrieve(datapath, year, month, last_day):
+def var_retrieve(datapath, year, month, last_day):
     # get the path to each datasets
     print ("Start retrieving datasets {0} (y) {1} (m)".format(year,month))
     # get the keys of data    
@@ -297,7 +298,7 @@ def compute_eddy(var_v_temporal_mean_select, var_v):
 
 def create_netcdf_point_eddy(var_v2_overall,var_v2_transient,var_v2_transient_mean,
                              var_v2_standing, var_v2_stationary_mean, var_v2_steady_mean,
-                             output_path):
+                             lat, lon, output_path):
     # take the zonal mean
     var_v2_overall_zonal = np.mean(var_v2_overall,3)
     var_v2_transient_zonal = np.mean(var_v2_transient,3)
@@ -369,8 +370,8 @@ def create_netcdf_point_eddy(var_v2_overall,var_v2_transient,var_v2_transient_me
     # writing data
     year_wrap_var[:] = period
     month_wrap_var[:] = index_month
-    lat_wrap_var[:] = benchmark.variables['latitude'][:]
-    lon_wrap_var[:] = benchmark.variables['longitude'][:]
+    lat_wrap_var[:] = lat
+    lon_wrap_var[:] = lon
     
     var_v2_overall_wrap_var[:] = var_v2_overall
     var_v2_transient_wrap_var[:] = var_v2_transient
@@ -453,6 +454,6 @@ if __name__=="__main__":
             var_v2_stationary_mean_pool[i-start_year,j-1,:,:] = var_v2_stationary_mean
     create_netcdf_point_eddy(var_v2_overall_pool,var_v2_transient_pool,var_v2_transient_mean_pool,
                              var_v2_standing_pool,var_v2_stationary_mean_pool,var_v2_steady_mean,
-                             output_path)
+                             lat, lon, output_path)
     print ('The full pipeline of the decomposition of meridional energy transport in the atmosphere is accomplished!')
     print ("--- %s minutes ---" % ((tttt.time() - start_time)/60))
