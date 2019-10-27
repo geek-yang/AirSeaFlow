@@ -230,7 +230,7 @@ def create_netcdf_point (pool_T,  pool_q, pool_u, pool_v,
     lat_wrap_var = data_wrap.createVariable('latitude',np.float32,('latitude',))
     lon_wrap_var = data_wrap.createVariable('longitude',np.float32,('longitude',))
     # create the actual 4d variable
-    t_wrap_var = data_wrap.createVariable('T',np.float64,('year', 'month', 'latitude', 'longitude'),zlib=True)
+    T_wrap_var = data_wrap.createVariable('T',np.float64,('year', 'month', 'latitude', 'longitude'),zlib=True)
     q_wrap_var = data_wrap.createVariable('q',np.float64,('year', 'month', 'latitude', 'longitude'),zlib=True)
     u_wrap_var = data_wrap.createVariable('u',np.float64,('year', 'month', 'latitude', 'longitude'),zlib=True)
     v_wrap_var = data_wrap.createVariable('v',np.float64,('year', 'month', 'latitude', 'longitude'),zlib=True)
@@ -322,8 +322,8 @@ if __name__=="__main__":
         # to deal with different data layout
         q = np.zeros((Dim_month, Dim_level, Dim_latitude, Dim_longitude), dtype=float)
         if i < 2014:
-            T[i-1979,:,:,:], q[i-1979,:,:,:], u[i-1979,:,:,:], v[i-1979,:,:,:],\
-            z[i-1979,:,:,:] = var_retrieve_year(datapath_3D, i, level, level_q)
+            pool_T[i-1979,:,:,:], pool_q[i-1979,:,:,:], pool_u[i-1979,:,:,:], pool_v[i-1979,:,:,:],\
+            pool_z[i-1979,:,:,:] = var_retrieve_year(datapath_3D, i, level, level_q)
         else:
             for j in index_month:
                 pool_T[i-1979, j-1,:,:], pool_q[i-1979, j-1,:,:],\
@@ -333,6 +333,6 @@ if __name__=="__main__":
     ######                 Data Wrapping (NetCDF)                #######
     ####################################################################
     create_netcdf_point(pool_T, pool_q, pool_u, pool_v,
-                        pool_z, output_path, lat, level)
+                        pool_z, output_path, lat, lon)
     print ('Packing 3D fields of JRA55 on pressure level is complete!!!')
     print ('The output is in sleep, safe and sound!!!')
